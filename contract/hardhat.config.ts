@@ -15,6 +15,7 @@ const config: HardhatUserConfig = {
     },
     customChains: [
       {
+        
         network: "liskSepolia",
         chainId: 4202,
         urls: {
