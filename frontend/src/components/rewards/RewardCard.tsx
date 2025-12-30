@@ -2,6 +2,9 @@
 
 import { Reward, rewardTypes } from '@/types/reward';
 import Image from 'next/image';
+import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Button } from '@/components/ui/button';
 
 interface RewardCardProps {
   reward: Reward;
@@ -15,17 +18,21 @@ export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProp
   const remainingPercentage = Math.round((reward.remaining / reward.total) * 100);
 
   return (
-    <div 
-      className={`relative flex flex-col rounded-lg overflow-hidden border ${rewardType.border} bg-white shadow-sm hover:shadow-md transition-shadow`}
+    <Card className={`relative flex flex-col overflow-hidden ${rewardType.border} shadow-sm hover:shadow-md transition-shadow`}
     >
       <div className="relative aspect-square bg-gray-100">
-        <Image 
-          src={reward.image} 
-          alt={reward.name}
-          fill
-          className="object-cover"
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-        />
+        {isLoading ? (
+          <Skeleton className="w-full h-full" />
+        ) : (
+          <Image 
+            src={reward.image} 
+            alt={reward.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          />
+        )}
+
         <div className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-white/90 backdrop-blur-sm">
           <span className={rewardType.color}>
             {rewardType.name}
@@ -34,35 +41,31 @@ export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProp
       </div>
       
       <div className="p-4 flex-1 flex flex-col">
-        <h3 className="font-semibold text-lg mb-1">{reward.name}</h3>
-        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{reward.description}</p>
+        <h3 className="font-semibold text-lg mb-1">{isLoading ? <Skeleton className="h-6 w-32" /> : reward.name}</h3>
+        <p className="text-sm text-muted mb-3 line-clamp-2">{isLoading ? <Skeleton className="h-4 w-full" /> : reward.description}</p>
         
         <div className="mt-auto space-y-2">
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Chance: {probability}%</span>
-            <span>{reward.remaining}/{reward.total} left</span>
+          <div className="flex justify-between text-sm text-muted">
+            <span>{isLoading ? <Skeleton className="h-4 w-24" /> : `Chance: ${probability}%`}</span>
+            <span>{isLoading ? <Skeleton className="h-4 w-20" /> : `${reward.remaining}/${reward.total} left`}</span>
           </div>
           
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
-              style={{ width: `${remainingPercentage}%` }}
+              className="bg-[var(--primary)] h-2 rounded-full transition-all duration-500" 
+              style={{ width: `${isLoading ? 60 : remainingPercentage}%` }}
             />
           </div>
           
-          <button
+          <Button
             onClick={() => onOpen?.(reward.id)}
             disabled={isLoading || reward.remaining === 0}
-            className={`w-full mt-2 py-2 px-4 rounded-md font-medium text-white ${
-              reward.remaining === 0 
-                ? 'bg-gray-400 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700'
-            } transition-colors`}
+            className="w-full mt-2"
           >
-            {isLoading ? 'Opening...' : 'Open Reward'}
-          </button>
+            {isLoading ? 'Opening...' : (reward.remaining === 0 ? 'Sold out' : 'Open Reward')}
+          </Button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

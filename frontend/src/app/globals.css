@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --primary: #0ea5e9;
+  --primary-foreground: white;
+  --card: #ffffff;
+  --muted-foreground: rgba(23,23,23,0.6);
 }
 
 @theme inline {
@@ -12,15 +16,39 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Dark mode via prefers-color-scheme or explicit .dark class */
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --primary: #60a5fa;
+    --primary-foreground: #0b1220;
+    --card: #0b1220;
+    --muted-foreground: rgba(255,255,255,0.6);
   }
+}
+
+.dark :root, .dark {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --primary: #60a5fa;
+  --primary-foreground: #0b1220;
+  --card: #0b1220;
+  --muted-foreground: rgba(255,255,255,0.6);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  transition: background 150ms ease, color 150ms ease;
 }
+
+/* Utility helpers for components (kept simple and small) */
+.bg-card {
+  background: var(--card);
+}
+.text-muted {
+  color: var(--muted-foreground);
+}
+
