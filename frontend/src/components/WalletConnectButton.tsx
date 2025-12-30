@@ -51,9 +51,11 @@ export function WalletConnectButton() {
     )
   }
 
+  const hasConnectors = connectors && connectors.length > 0
+
   return (
     <div className="relative" ref={containerRef}>
-      <Button onClick={() => setOpen((v) => !v)}>
+      <Button onClick={() => setOpen((v) => !v)} disabled={!hasConnectors} title={!hasConnectors ? 'No wallets available' : undefined}>
         Connect Wallet
       </Button>
 
