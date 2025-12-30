@@ -9,4 +9,9 @@ if (!toc.includes('User documentation') || !toc.includes('User guide: Wallets'))
   console.error('Docs TOC missing user documentation entries');
   process.exit(2);
 }
-console.log('Docs TOC has onboarding and user documentation entries');
+// Technical docs checks
+if (!toc.includes('Technical Specification') || !toc.includes('Architecture Overview')) {
+  console.error('Docs TOC missing technical documentation entries');
+  process.exit(2);
+}
+console.log('Docs TOC has onboarding, user and technical documentation entries');
