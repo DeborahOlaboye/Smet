@@ -35,6 +35,7 @@ describe('WalletConnectButton', () => {
 
     const button = screen.getByText(/connect wallet/i)
     expect(button).toBeInTheDocument()
+    expect(button).not.toBeDisabled()
 
     // open picker
     fireEvent.click(button)
@@ -48,6 +49,18 @@ describe('WalletConnectButton', () => {
     // click first connector's connect
     fireEvent.click(connectButtons[0])
     expect(connect).toHaveBeenCalled()
+  })
+
+  test('shows disabled connect button when no connectors', () => {
+    mockUseAccount.mockReturnValue({ address: undefined, isConnected: false })
+    mockUseConnect.mockReturnValue({ connectors: [], connect: vi.fn(), isLoading: false, pendingConnector: undefined })
+    mockUseDisconnect.mockReturnValue({ disconnect: vi.fn() })
+
+    render(<WalletConnectButton />)
+
+    const button = screen.getByText(/connect wallet/i)
+    expect(button).toBeDisabled()
+    expect(button).toHaveAttribute('title', 'No wallets available')
   })
 
   test('shows address and disconnect when connected', () => {
