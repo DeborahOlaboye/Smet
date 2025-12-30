@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, ReactNode, useCallback, useState } from 'react';
-import { useRewardContract } from '@/hooks/useRewardContract';
+import { useSmetReward } from '@/lib/web3/useSmetReward';
 import { useToast } from '@/components/ui/use-toast';
 import { parseEther } from 'viem';
 
@@ -53,8 +53,9 @@ export function RewardProvider({ children }: { children: ReactNode }) {
     estimateGas,
     isLoading,
     isSuccess,
+    isError: isHookError,
     error: contractError,
-  } = useRewardContract({
+  } = useSmetReward({
     onSuccess: handleSuccess,
     onError: handleError,
   });
