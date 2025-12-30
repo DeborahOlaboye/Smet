@@ -14,6 +14,9 @@ interface ToastOptions {
 export function useErrorHandler() {
   const toast = useToast();
 
+  // Normalize errors to a string message and show a toast. This helper
+  // accepts Error objects, strings or unknown values and picks a sensible
+  // default where necessary, ensuring consistent UI feedback across the app.
   const handleError = useCallback(
     (error: ErrorType, defaultMessage = 'An unexpected error occurred') => {
       console.error('Error:', error);

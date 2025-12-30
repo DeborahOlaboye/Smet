@@ -12,12 +12,17 @@ export function WalletConnectButton() {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement | null>(null)
 
+  // Attempt to connect with the selected connector. We close the picker
+  // after starting the connection flow; the connect() call may prompt the
+  // wallet UI and is responsible for updating the `useAccount` state.
   async function handleConnect(connector: any) {
     await connect({ connector })
     setOpen(false)
   }
 
   useEffect(() => {
+    // Close the connector picker when clicking outside or pressing Escape.
+    // This is attached only while the picker is open for minimal event work.
     function onDocClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)

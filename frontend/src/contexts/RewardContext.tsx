@@ -15,6 +15,9 @@ interface RewardContextType {
   reset: () => void;
 }
 
+// RewardContext centralises the logic for the open reward flow so that UI
+// components can simply call `openReward` without dealing with transaction
+// lifecycle, toasts, or error handling directly.
 const RewardContext = createContext<RewardContextType | undefined>(undefined);
 
 export function RewardProvider({ children }: { children: ReactNode }) {
@@ -23,6 +26,8 @@ export function RewardProvider({ children }: { children: ReactNode }) {
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const { toast } = useToast();
 
+  // Called when the transaction is confirmed. It clears the loading state
+  // and shows a success toast. The full receipt is available via `data`.
   const handleSuccess = useCallback((data: any) => {
     setIsOpening(false);
     toast({
@@ -34,6 +39,9 @@ export function RewardProvider({ children }: { children: ReactNode }) {
     });
   }, [toast]);
 
+  // Called on any error during prepare, write or transaction confirmation.
+  // We capture the Error object, show a toast and persist the error in state
+  // so consuming components can render helpful UI.
   const handleError = useCallback((error: Error) => {
     console.error('Reward error:', error);
     setIsOpening(false);
@@ -65,7 +73,7 @@ export function RewardProvider({ children }: { children: ReactNode }) {
       setError(null);
       setIsOpening(true);
       
-      // Show pending toast
+      // Show pending toast so users know work has started.
       toast({
         title: 'Processing',
         description: 'Opening reward...',
@@ -74,7 +82,10 @@ export function RewardProvider({ children }: { children: ReactNode }) {
         isClosable: true,
       });
 
-      // Execute the contract call
+      // Execute the contract call. We intentionally do not await full
+      // confirmation here — the hook will call `handleSuccess` once the
+      // transaction is mined. We still capture the immediate tx hash to show
+      // progress in the UI.
       const tx = await contractOpenReward();
       setTxHash(tx.hash);
       
