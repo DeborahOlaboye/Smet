@@ -16,3 +16,8 @@
 - [User guide: Contracts](USER_GUIDE_CONTRACTS.md)
 - [User examples](USER_EXAMPLES.md)
 - [Troubleshooting (Users)](USER_TROUBLESHOOTING.md)
+- [Technical Specification](TECHNICAL_SPECIFICATION.md)
+- [Architecture Overview](ARCHITECTURE.md)
+- [Operational Notes](DEPLOYMENT.md)
+- [Test Plan](TEST_PLAN.md)
+- [Risk Assessment](RISK.md)
