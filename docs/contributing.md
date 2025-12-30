@@ -13,7 +13,9 @@ Thank you for contributing — we welcome improvements, bug fixes, and documenta
 
 ## Tests
 - Add unit tests for new components (Vitest/Jest configured).
-- Run `pnpm test` and ensure all tests pass locally.
+- Run `npm test` and ensure all tests pass locally.
+
+> New contributors: see `docs/DEVELOPER_ONBOARDING.md` for a step-by-step setup and checklist.
 
 ## Code style
 - Use TypeScript types for props and state.
