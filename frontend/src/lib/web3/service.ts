@@ -16,6 +16,7 @@ export class SmetRewardService {
   // Example helper that formats the calldata for opening a reward
   public getOpenTxData(paymentInNative = true, priceInEther = '0.01') {
     // IMPORTANT: This is a lightweight helper; actual tx creation should be done with a signer/provider
+    // typed OpenTxData
     return {
       to: this.address,
       data: {
