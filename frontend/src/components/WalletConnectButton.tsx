@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { Button } from './ui/button'
 import { ConnectorPicker } from './ConnectorPicker'
@@ -10,11 +10,33 @@ export function WalletConnectButton() {
   const { connect, connectors, isLoading, pendingConnector } = useConnect()
   const { disconnect } = useDisconnect()
   const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   async function handleConnect(connector: any) {
     await connect({ connector })
     setOpen(false)
   }
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+
+    if (open) {
+      document.addEventListener('click', onDocClick)
+      document.addEventListener('keydown', onKey)
+    }
+
+    return () => {
+      document.removeEventListener('click', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
 
   if (isConnected) {
     return (
@@ -30,7 +52,7 @@ export function WalletConnectButton() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <Button onClick={() => setOpen((v) => !v)}>
         Connect Wallet
       </Button>
