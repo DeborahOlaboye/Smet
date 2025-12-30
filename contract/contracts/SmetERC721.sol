@@ -20,7 +20,9 @@ contract SmetHero is ERC721 {
      * @return id The token id that was minted.
      */
     function mint(address to) external returns (uint256 id) {
-        id = nextId++;
+        id = nextId;
+        // Use unchecked increment to save a small amount of gas on the common path
+        unchecked { nextId = id + 1; }
         // Use _safeMint to ensure ERC721Receiver compliance when minting to contracts
         _safeMint(to, id);
     }

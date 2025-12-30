@@ -40,15 +40,16 @@ contract SmetReward is
     /** @notice Chainlink subscription id used to pay for VRF. */
     uint256 public immutable subId;
 
+    // Gas-optimized constants and immutables
     /** @notice Number of confirmations VRF should wait before responding. */
-    uint16 public requestConfirmations = 3;
+    uint16 public constant REQUEST_CONFIRMATIONS = 3;
     /** @notice Gas limit forwarded to the VRF callback. */
-    uint32 public callbackGasLimit = 250_000;
+    uint32 public constant CALLBACK_GAS_LIMIT = 250_000;
     /** @notice Number of random words requested from VRF. */
-    uint32 public numWords = 3;
+    uint32 public constant NUM_WORDS = 3;
 
     /** @notice Fee to open a loot box (in native wei). */
-    uint256 public fee;
+    uint256 public immutable fee;
     /** @notice Cumulative distribution function built from initial weights. */
     uint32[] public cdf;
     /** @notice Prize pool array where each element describes a reward. */
@@ -98,21 +99,22 @@ contract SmetReward is
         // Build cumulative distribution function (CDF) from weights.
         // Example: weights [10, 30, 60] -> cdf [10, 40, 100]
         // We keep the cumulative sums so we can sample a random number in [0,total)
-        // and select the first index where r < cdf[index]. This is O(n) but simple
-        // and gas-efficient for modest prize pools.
-        uint32 acc = 0;
-        for (uint i = 0; i < _weights.length; i++) {
+        // and select the first index where r < cdf[index]. This implementation uses
+        // `unchecked` loop increments and local length caching to reduce gas.
+        uint256 acc = 0;
+        uint256 len = _weights.length;
+        for (uint256 i = 0; i < len; ) {
             acc += _weights[i];
-            cdf.push(acc);
+            // store as uint32 to keep the original storage type
+            cdf.push(uint32(acc));
+            unchecked { i++; }
         }
 
-        for (uint i = 0; i < _prizes.length; i++) {
-            Reward memory r = _prizes[i];
-            prizePool.push(Reward({
-                assetType: r.assetType,
-                token: r.token,
-                idOrAmount: r.idOrAmount
-            }));
+        uint256 plen = _prizes.length;
+        for (uint256 i = 0; i < plen; ) {
+            Reward memory rr = _prizes[i];
+            prizePool.push(rr);
+            unchecked { i++; }
         }
     }
 
@@ -129,14 +131,13 @@ contract SmetReward is
 
         // Build a VRF request object. We include `extraArgs` to indicate whether
         // Chainlink should use native payment (if payInNative is true) or LINK.
-        // The request parameters (confirmations, gas limit, numWords) are tuned
-        // to balance cost and reliability.
+        // The request parameters use gas-optimized constants to reduce storage reads.
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
             keyHash: keyHash,
             subId: uint256(subId),
-            requestConfirmations: requestConfirmations,
-            callbackGasLimit: callbackGasLimit,
-            numWords: numWords,
+            requestConfirmations: REQUEST_CONFIRMATIONS,
+            callbackGasLimit: CALLBACK_GAS_LIMIT,
+            numWords: NUM_WORDS,
             extraArgs: VRFV2PlusClient._argsToBytes(
                 VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
             )
@@ -170,12 +171,19 @@ contract SmetReward is
         uint256 total = cdf[cdf.length - 1];
         uint256 r = rnd[0] % total;
 
-        // Find the first index whose CDF exceeds the sampled value. This is the
-        // selected prize index.
-        uint256 idx;
-        for (idx = 0; idx < cdf.length; idx++) {
-            if (r < cdf[idx]) break;
+        // Use binary search to find the first index whose CDF exceeds the sampled
+        // value. Binary search reduces the number of storage reads from O(n) to O(log n).
+        uint256 low = 0;
+        uint256 high = cdf.length - 1;
+        while (low < high) {
+            uint256 mid = (low + high) >> 1;
+            if (r < cdf[mid]) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
         }
+        uint256 idx = low;
 
         Reward memory rw = prizePool[idx];
         _deliver(opener, rw);
