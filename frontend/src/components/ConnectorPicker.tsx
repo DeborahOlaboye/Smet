@@ -30,6 +30,7 @@ export function ConnectorPicker({ connectors, onConnect, isLoading, pendingConne
               onClick={() => onConnect(connector)}
               disabled={!connector.ready || isLoading}
               className="h-8 px-3 text-sm"
+              aria-label={`Connect with ${connector.name}`}
             >
               {isLoading && connector.id === pendingConnector?.id ? 'Connecting...' : 'Connect'}
             </Button>
