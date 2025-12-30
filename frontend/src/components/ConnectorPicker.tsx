@@ -18,7 +18,7 @@ export function ConnectorPicker({ connectors, onConnect, isLoading, pendingConne
         <div key={connector.id} className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gray-100 dark:bg-slate-800 rounded flex items-center justify-center text-sm font-medium">
-              {connector.name?.slice(0, 2)}
+              {connector.id === 'injected' ? '🦊' : connector.id === 'walletConnect' ? '🔗' : connector.name?.slice(0, 2)}
             </div>
             <div className="text-sm">
               <div className="font-medium">{connector.name}</div>
