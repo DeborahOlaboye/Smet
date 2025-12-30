@@ -11,5 +11,6 @@ This docs folder contains setup instructions, component documentation, API inter
 - `api.md` — How the frontend interacts with backend APIs
 - `contributing.md` — How to contribute to the frontend
 - `images/` — Screenshots and visual references
+- `TOC.md` — Quick table of contents for docs
 
-> See `frontend/README.md` for a quick overview and screenshots.
+> See `frontend/README.md` or `frontend/DOCUMENTATION.md` for a quick overview and screenshots.
