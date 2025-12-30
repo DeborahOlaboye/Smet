@@ -9,48 +9,78 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
+/**
+ * @dev Reward descriptor used in the prize pool.
+ * @param assetType Asset type: 1 = ERC20, 2 = ERC721, 3 = ERC1155.
+ * @param token Token contract address.
+ * @param idOrAmount Token id for NFTs or amount for fungible tokens.
+ */
 struct Reward {
     uint8 assetType;
     address token;
     uint256 idOrAmount;
-}
+} 
 
-/*
- * SmetReward
- *
- * This contract implements a provably-fair "loot box" style reward system.
- * - A weighted prize pool is provided at construction. The `weights` array
- *   is converted into a cumulative distribution function (CDF) stored in
- *   `cdf` for efficient sampling.
- * - Users call `open()` (paying the required fee) which requests random words
- *   from Chainlink VRF (via VRF V2 Plus). The randomness callback chooses a
- *   prize by taking rnd[0] modulo the total weight and finding the first CDF
- *   bucket that exceeds the random value.
- * - The contract supports ERC20/ERC721/ERC1155 reward deliveries and has
- *   straightforward refill and receiver handlers for token transfers.
+/**
+ * @title SmetReward
+ * @notice Provably-fair "loot box" reward contract using Chainlink VRF V2 Plus.
+ * @dev Uses a cumulative distribution function (CDF) built from weights for
+ * sampling. `open()` requests randomness; `fulfillRandomWords` selects and
+ * delivers a prize via `_deliver` which supports ERC20/ERC721/ERC1155.
  */
 contract SmetReward is 
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver 
 {
+    /** @notice Chainlink VRF coordinator address. */
     address public immutable VRF_COORD;
+    /** @notice Active key hash used for VRF requests. */
     bytes32 public immutable keyHash;
+    /** @notice Chainlink subscription id used to pay for VRF. */
     uint256 public immutable subId;
 
+    /** @notice Number of confirmations VRF should wait before responding. */
     uint16 public requestConfirmations = 3;
+    /** @notice Gas limit forwarded to the VRF callback. */
     uint32 public callbackGasLimit = 250_000;
+    /** @notice Number of random words requested from VRF. */
     uint32 public numWords = 3;
 
+    /** @notice Fee to open a loot box (in native wei). */
     uint256 public fee;
+    /** @notice Cumulative distribution function built from initial weights. */
     uint32[] public cdf;
+    /** @notice Prize pool array where each element describes a reward. */
     Reward[] public prizePool;
 
+    /** @notice Maps VRF request ids to the address that opened the box. */
     mapping(uint256 => address) private waiting;
 
+    /**
+     * @notice Emitted when a box is opened and a VRF request is sent.
+     * @param opener The sender who opened the box.
+     * @param reqId The Chainlink VRF request id.
+     */
     event Opened(address indexed opener, uint256 indexed reqId);
+
+    /**
+     * @notice Emitted after a reward has been delivered.
+     * @param opener The recipient of the delivered reward.
+     * @param reward The Reward struct representing the delivered asset.
+     */
     event RewardOut(address indexed opener, Reward reward);
 
+    /**
+     * @notice Construct SmetReward with initial configuration.
+     * @dev Builds internal CDF from `_weights` and stores `_prizes` into `prizePool`.
+     * @param _coordinator VRF coordinator address.
+     * @param _subId Chainlink subscription id.
+     * @param _keyHash Key hash for VRF requests.
+     * @param _fee Fee (in wei) required to open a box.
+     * @param _weights Array of weights used to build CDF (must match `_prizes` length).
+     * @param _prizes Array of `Reward` structs representing prize pool.
+     */
     constructor(
         address _coordinator,
         uint256  _subId,
@@ -86,6 +116,13 @@ contract SmetReward is
         }
     }
 
+    /**
+     * @notice Open a loot box by paying the configured fee and request randomness.
+     * @dev The `payInNative` value is passed to Chainlink to instruct payment mode.
+     * Emits an {Opened} event. Returns the Chainlink VRF request id.
+     * @param payInNative When true, instruct VRF to accept native payment for gas.
+     * @return reqId The Chainlink VRF request id for this open call.
+     */
     function open(bool payInNative) external payable returns (uint256 reqId) {
         // Ensure caller paid exactly the configured fee for opening a box
         require(msg.value == fee, "!fee");
@@ -114,6 +151,13 @@ contract SmetReward is
         emit Opened(msg.sender, reqId);
     }
 
+    /**
+     * @dev Chainlink VRF callback that receives random words, selects a prize
+     * using the internal CDF, delivers it to the original opener, and emits
+     * the {RewardOut} event.
+     * @param reqId The Chainlink VRF request id.
+     * @param rnd Array of random words returned by VRF.
+     */
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
         // Map the VRF request id back to the original opener
         address opener = waiting[reqId];
@@ -141,6 +185,12 @@ contract SmetReward is
         delete waiting[reqId];
     }
 
+    /**
+     * @dev Internal helper to deliver a selected `Reward` to `to`.
+     * Supports ERC20 transfers, ERC721 safeTransferFrom, and ERC1155 single transfer.
+     * @param to Recipient address.
+     * @param rw Reward descriptor to deliver.
+     */
     function _deliver(address to, Reward memory rw) private {
         // Deliver the selected reward to `to` depending on the asset type.
         // assetType: 1 = ERC20 (transfer amount), 2 = ERC721 (token id), 3 = ERC1155 (id + amount 1)
@@ -158,17 +208,26 @@ contract SmetReward is
         }
     }
 
-    // Allows anyone to transfer ERC20 tokens into the contract to fund ERC20 prizes.
-    // The caller must have approved the contract to spend `amount` of `token`.
+    /**
+     * @notice Refill the contract with ERC20 tokens to fund ERC20 prizes.
+     * @dev Caller must `approve` this contract to spend `amount` of `token` beforehand.
+     * @param token The ERC20 token to transfer in.
+     * @param amount Amount of tokens to transfer into the contract.
+     */
     function refill(IERC20 token, uint256 amount) external {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
     }
 
+    /** @notice Accept native (ETH) payments to the contract. */
     receive() external payable {}
 
     // ===== ERC721 & ERC1155 Receiver Support =====
 
+    /**
+     * @notice ERC721 token receiver handler required for safe transfers to this contract.
+     * @return selector Magic value to accept the transfer.
+     */
     function onERC721Received(
         address,
         address,
@@ -179,6 +238,10 @@ contract SmetReward is
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    /**
+     * @notice ERC1155 single token receiver handler required for safe transfers to this contract.
+     * @return selector Magic value to accept the transfer.
+     */
     function onERC1155Received(
         address,
         address,
@@ -190,6 +253,10 @@ contract SmetReward is
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
+    /**
+     * @notice ERC1155 batch receiver handler required for safe transfers to this contract.
+     * @return selector Magic value to accept the batch transfer.
+     */
     function onERC1155BatchReceived(
         address,
         address,
@@ -201,6 +268,11 @@ contract SmetReward is
         return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
+    /**
+     * @notice Query whether a given interface is supported (ERC165).
+     * @param interfaceId The interface id to check.
+     * @return True if the interface is supported.
+     */
     function supportsInterface(bytes4 interfaceId)
         public
         pure
