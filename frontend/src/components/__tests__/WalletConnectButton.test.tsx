@@ -2,7 +2,8 @@ import React from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 
-// Mock wagmi hooks
+// Mock wagmi hooks - tests stub out Wagmi's hook implementations to enable
+// deterministic UI tests without requiring an active wallet or provider.
 const mockUseAccount = vi.fn()
 const mockUseConnect = vi.fn()
 const mockUseDisconnect = vi.fn()
