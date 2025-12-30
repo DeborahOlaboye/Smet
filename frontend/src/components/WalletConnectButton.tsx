@@ -1,14 +1,42 @@
 'use client'
 
+import { useState, useRef, useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { Button } from './ui/button' // You'll need to create this UI component
+import { Button } from './ui/button'
+import { ConnectorPicker } from './ConnectorPicker'
 
 export function WalletConnectButton() {
   const { address, isConnected } = useAccount()
   const { connect, connectors, isLoading, pendingConnector } = useConnect()
   const { disconnect } = useDisconnect()
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
-  const walletConnector = connectors[0]
+  async function handleConnect(connector: any) {
+    await connect({ connector })
+    setOpen(false)
+  }
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setOpen(false)
+    }
+
+    if (open) {
+      document.addEventListener('click', onDocClick)
+      document.addEventListener('keydown', onKey)
+    }
+
+    return () => {
+      document.removeEventListener('click', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
 
   if (isConnected) {
     return (
@@ -23,14 +51,24 @@ export function WalletConnectButton() {
     )
   }
 
+  const hasConnectors = connectors && connectors.length > 0
+
   return (
-    <Button
-      onClick={() => connect({ connector: walletConnector })}
-      disabled={!walletConnector.ready || isLoading}
-    >
-      {isLoading && walletConnector.id === pendingConnector?.id
-        ? 'Connecting...'
-        : 'Connect Wallet'}
-    </Button>
+    <div className="relative" ref={containerRef}>
+      <Button onClick={() => setOpen((v) => !v)} disabled={!hasConnectors} title={!hasConnectors ? 'No wallets available' : undefined}>
+        Connect Wallet
+      </Button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 z-50">
+          <ConnectorPicker
+            connectors={connectors}
+            onConnect={handleConnect}
+            isLoading={isLoading}
+            pendingConnector={pendingConnector}
+          />
+        </div>
+      )}
+    </div>
   )
 }
