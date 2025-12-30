@@ -22,16 +22,19 @@ export function ConnectorPicker({ connectors, onConnect, isLoading, pendingConne
             </div>
             <div className="text-sm">
               <div className="font-medium">{connector.name}</div>
+              {/* Show whether the connector is ready (e.g., MetaMask injected may be unavailable) */}
               {!connector.ready && <div className="text-xs text-muted-foreground">Unavailable</div>}
             </div>
           </div>
           <div>
             <Button
               onClick={() => onConnect(connector)}
+              // Disable the button if the connector isn't ready or a connection is in progress
               disabled={!connector.ready || isLoading}
               className="h-8 px-3 text-sm"
               aria-label={`Connect with ${connector.name}`}
             >
+              {/* When a connection is in progress, match the button label to the pending connector */}
               {isLoading && connector.id === pendingConnector?.id ? 'Connecting...' : 'Connect'}
             </Button>
           </div>
