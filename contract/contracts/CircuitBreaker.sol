@@ -2,8 +2,9 @@
 pragma solidity 0.8.26;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ICircuitBreaker.sol";
 
-contract CircuitBreaker is Ownable {
+contract CircuitBreaker is Ownable, ICircuitBreaker {
     mapping(bytes4 => bool) private _circuitBroken;
     mapping(address => bool) private _authorizedBreakers;
     
