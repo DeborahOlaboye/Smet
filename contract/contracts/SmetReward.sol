@@ -76,6 +76,7 @@ contract SmetReward is
 
     /** @notice Maps VRF request ids to the address that opened the box. */
     mapping(uint256 => address) private waiting;
+    mapping(address => uint256[]) private pendingRewards;
 
     /** @notice Per-user timestamp of last open to enforce cooldowns. */
     mapping(address => uint256) public lastOpened;
@@ -103,6 +104,8 @@ contract SmetReward is
      * @param reward The Reward struct representing the delivered asset.
      */
     event RewardOut(address indexed opener, Reward reward);
+    event BatchRewardsClaimed(address indexed claimer, uint256 count);
+    event BatchOperationCompleted(address indexed user, string operation, uint256 count);
 
     /**
     /** @notice Emitted when a new pool is created. */
@@ -256,110 +259,30 @@ contract SmetReward is
         return _createPool(_fee, _weights, _prizes);
     }
 
-    /**
-     * @notice Set a pool's fee. Admin only.
-     */
-    function setPoolFee(uint256 pid, uint256 _fee) external {
-        require(msg.sender == admin, "not admin");
-        require(pid < poolCount, "pid oob");
-        poolFee[pid] = _fee;
-        emit PoolUpdated(pid);
-    }
-
-    /**
-     * @notice Replace a pool's prizes. Admin only.
-     */
-    function setPoolPrizes(uint256 pid, Reward[] memory _prizes) external {
-        require(msg.sender == admin, "not admin");
-        require(pid < poolCount, "pid oob");
-        // clear existing array
-        delete prizePoolPerPool[pid];
-        for (uint256 i = 0; i < _prizes.length; ) {
-            prizePoolPerPool[pid].push(_prizes[i]);
-            unchecked { i++; }
+    function batchOpen(uint256 count, bool payInNative) external payable returns (uint256[] memory reqIds) {
+        require(msg.value == fee * count, "!fee");
+        require(count > 0 && count <= 10, "Invalid count");
+        
+        reqIds = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: uint256(subId),
+                requestConfirmations: requestConfirmations,
+                callbackGasLimit: callbackGasLimit,
+                numWords: numWords,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
+                )
+            });
+            
+            reqIds[i] = s_vrfCoordinator.requestRandomWords(r);
+            waiting[reqIds[i]] = msg.sender;
+            emit Opened(msg.sender, reqIds[i]);
         }
-        emit PoolUpdated(pid);
+        emit BatchOperationCompleted(msg.sender, "batchOpen", count);
     }
 
-    /**
-     * @notice Replace a pool's weights. Admin only.
-     */
-    function setPoolWeights(uint256 pid, uint32[] memory _weights) external {
-        require(msg.sender == admin, "not admin");
-        require(pid < poolCount, "pid oob");
-        require(_weights.length == prizePoolPerPool[pid].length, "len mismatch");
-        delete cdfPerPool[pid];
-        uint256 acc = 0;
-        for (uint256 i = 0; i < _weights.length; ) {
-            acc += _weights[i];
-            cdfPerPool[pid].push(uint32(acc));
-            unchecked { i++; }
-        }
-        emit PoolUpdated(pid);
-    }
-
-    /**
-     * @notice Return whether a prize in a pool is available.
-     */
-    function isPrizeAvailableInPool(uint256 pid, uint256 idx) public view returns (bool) {
-        require(pid < poolCount, "pid oob");
-        require(idx < prizePoolPerPool[pid].length, "idx oob");
-        Reward memory candidate = prizePoolPerPool[pid][idx];
-        return (candidate.availableAfter == 0 || block.timestamp >= candidate.availableAfter);
-    }
-
-    /**
-     * @notice Return the number of prizes in a given pool.
-     */
-    function prizePoolLength(uint256 pid) external view returns (uint256) {
-        require(pid < poolCount, "pid oob");
-        return prizePoolPerPool[pid].length;
-    }
-
-    /**
-     * @notice Return basic info for a given pool (fee and prize count).
-     */
-    function getPoolInfo(uint256 pid) external view returns (uint256 feeOut, uint256 prizeCount) {
-        require(pid < poolCount, "pid oob");
-        feeOut = poolFee[pid];
-        prizeCount = prizePoolPerPool[pid].length;
-    }
-
-    /**
-     * @notice Set global cooldown (in seconds) between opens for each user. Admin only.
-     */
-    function setCooldownSeconds(uint256 _s) external {
-        require(msg.sender == admin, "not admin");
-        cooldownSeconds = _s;
-        emit CooldownSet(_s);
-    }
-
-    /**
-     * @notice Set the availability timestamp for a prize index. Admin only.
-     */
-    function setPrizeAvailableAfter(uint256 idx, uint64 availableAfter) external {
-        require(msg.sender == admin, "not admin");
-        require(idx < prizePool.length, "idx oob");
-        prizePool[idx].availableAfter = availableAfter;
-        emit PrizeAvailabilitySet(idx, availableAfter);
-    }
-
-    /**
-     * @notice Query whether a prize index is currently available.
-     */
-    function isPrizeAvailable(uint256 idx) public view returns (bool) {
-        require(idx < prizePool.length, "idx oob");
-        Reward memory candidate = prizePool[idx];
-        return (candidate.availableAfter == 0 || block.timestamp >= candidate.availableAfter);
-    }
-
-    /**
-     * @dev Chainlink VRF callback that receives random words, selects a prize
-     * using the internal CDF, delivers it to the original opener, and emits
-     * the {RewardOut} event.
-     * @param reqId The Chainlink VRF request id.
-     * @param rnd Array of random words returned by VRF.
-     */
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
         // Map the VRF request id back to the original opener and pool
         address opener = waiting[reqId];
@@ -463,7 +386,15 @@ contract SmetReward is
         token.transferFrom(msg.sender, address(this), amount);
     }
 
-    /** @notice Accept native (ETH) payments to the contract. */
+    function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
+        require(tokens.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < tokens.length; i++) {
+            require(amounts[i] > 0, "!amount");
+            tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
+        }
+        emit BatchOperationCompleted(msg.sender, "batchRefill", tokens.length);
+    }
+
     receive() external payable {}
 
     /**

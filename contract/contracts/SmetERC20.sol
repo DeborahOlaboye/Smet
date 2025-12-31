@@ -8,13 +8,33 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  * @dev Mints a fixed initial supply to the deployer for seeding the prize pool.
  */
 contract SmetGold is ERC20 {
-    /** @notice Initial mint supply given to the deployer (in wei). */
-    uint256 public constant INITIAL_SUPPLY = 10000000 ether;
+    event BatchTransferCompleted(address indexed sender, uint256 count);
+    event BatchApprovalCompleted(address indexed sender, uint256 count);
 
-    /**
-     * @notice Deploy the SmetGold token and mint the initial supply to deployer.
-     */
     constructor() ERC20("SmetGold", "SGOLD") {
         _mint(msg.sender, INITIAL_SUPPLY);
     }
-} 
+
+    function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) external {
+        require(recipients.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            transfer(recipients[i], amounts[i]);
+        }
+        emit BatchTransferCompleted(msg.sender, recipients.length);
+    }
+
+    function batchApprove(address[] calldata spenders, uint256[] calldata amounts) external {
+        require(spenders.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < spenders.length; i++) {
+            approve(spenders[i], amounts[i]);
+        }
+        emit BatchApprovalCompleted(msg.sender, spenders.length);
+    }
+
+    function batchTransferFrom(address[] calldata from, address[] calldata to, uint256[] calldata amounts) external {
+        require(from.length == to.length && to.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < from.length; i++) {
+            transferFrom(from[i], to[i], amounts[i]);
+        }
+    }
+}
