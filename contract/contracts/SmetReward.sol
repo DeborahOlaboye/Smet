@@ -420,6 +420,13 @@ contract SmetReward is
     function waitingPoolOf(uint256 reqId) external view returns (uint256) {
         return waitingPool[reqId];
     }
+
+    /**
+     * @notice Helper to inspect which address opened a given request id (for testing/observability).
+     */
+    function waitingOf(uint256 reqId) external view returns (address) {
+        return waiting[reqId];
+    }
     }
 
     /**

@@ -336,11 +336,13 @@ contract SmetRewardTest is Test {
 
         // the waitingPool should be set for the fake req id (coordinator mock behavior)
         assertEq(box.waitingPoolOf(FAKE_REQ_ID), 1);
+        assertEq(box.waitingOf(FAKE_REQ_ID), alice);
 
         box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
 
         // after fulfill, waiting mapping should be cleaned
         assertEq(box.waitingPoolOf(FAKE_REQ_ID), 0);
+        assertEq(box.waitingOf(FAKE_REQ_ID), address(0));
 
         // Expect ERC20 to be delivered from pool 1's selection
         assertEq(gold.balanceOf(alice), 777 ether);
