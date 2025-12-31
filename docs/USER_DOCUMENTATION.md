@@ -29,7 +29,8 @@ Smet provides a frontend experience for connecting wallets and opening rewards v
 1. After connecting, navigate to the rewards page.
 2. Select a reward box and click `Open`.
 3. Confirm the transaction in your wallet. You will see a pending status until the transaction is mined.
-4. After confirmation, the app will display the result (which token you won).
+4. When opening a reward, you may select a specific pool (if multiple pools are configured). The contract method signature is `open(paymentInNative, poolId)` where `poolId` is an integer (default 0).
+5. After confirmation, the app will display the result (which token you won).
 
 ---
 
