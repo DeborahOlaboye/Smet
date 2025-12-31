@@ -38,6 +38,7 @@ contract SmetReward is
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
     event BatchRewardsClaimed(address indexed claimer, uint256 count);
+    event BatchOperationCompleted(address indexed user, string operation, uint256 count);
 
     constructor(
         address _coordinator,
