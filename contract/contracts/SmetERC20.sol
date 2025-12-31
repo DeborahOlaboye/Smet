@@ -31,6 +31,7 @@ contract SmetGold is ERC20 {
     
     function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) external {
         InputValidator.validateArrayLength(recipients.length);
+        InputValidator.validateBatchSize(recipients.length);
         InputValidator.validateArrayLengths(recipients.length, amounts.length);
         for (uint256 i = 0; i < recipients.length; i++) {
             InputValidator.validateAddress(recipients[i]);
@@ -43,6 +44,7 @@ contract SmetGold is ERC20 {
     
     function batchApprove(address[] calldata spenders, uint256[] calldata amounts) external {
         InputValidator.validateArrayLength(spenders.length);
+        InputValidator.validateBatchSize(spenders.length);
         InputValidator.validateArrayLengths(spenders.length, amounts.length);
         for (uint256 i = 0; i < spenders.length; i++) {
             InputValidator.validateAddress(spenders[i]);
