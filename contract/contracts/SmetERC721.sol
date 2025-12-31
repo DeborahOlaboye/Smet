@@ -9,6 +9,12 @@ contract SmetHero is ERC721, AccessControl, Pausable {
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     
     uint256 public nextId = 1;
+    
+    event ContractPaused(address indexed pauser, string reason);
+    event ContractUnpaused(address indexed unpauser);
+    event HeroMinted(address indexed to, uint256 indexed tokenId, address indexed minter);
+    event HeroBurned(uint256 indexed tokenId, address indexed burner);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
 
     constructor() ERC721("SmetHero", "SHERO") {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -18,7 +24,37 @@ contract SmetHero is ERC721, AccessControl, Pausable {
 
     function mint(address to) external onlyRole(MINTER_ROLE) whenNotPaused returns (uint256 id) {
         id = nextId++;
+        totalMinted++;
         _safeMint(to, id);
+        emit HeroMinted(to, id, msg.sender);
+    }
+    
+    function burn(uint256 tokenId) external whenNotPaused {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        _burn(tokenId);
+        emit HeroBurned(tokenId, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
+    }
+    
+    function transferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        super.transferFrom(from, to, tokenId);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override whenNotPaused {
+        super.safeTransferFrom(from, to, tokenId, data);
+    }
+    
+    function approve(address to, uint256 tokenId) public override whenNotPaused {
+        super.approve(to, tokenId);
     }
     
     function pause() external onlyRole(PAUSER_ROLE) {

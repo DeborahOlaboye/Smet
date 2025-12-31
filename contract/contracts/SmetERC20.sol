@@ -13,6 +13,45 @@ contract SmetGold is ERC20, AccessControl, Pausable {
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(PAUSER_ROLE, msg.sender);
         _mint(msg.sender, 10000000 ether);
+        emit TokensMinted(msg.sender, 10000000 ether, msg.sender);
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+        emit ContractPaused(msg.sender, "Manual pause");
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+        emit ContractUnpaused(msg.sender);
+    }
+    
+    function transfer(address to, uint256 amount) public override whenNotPaused returns (bool) {
+        return super.transfer(to, amount);
+    }
+    
+    function transferFrom(address from, address to, uint256 amount) public override whenNotPaused returns (bool) {
+        return super.transferFrom(from, to, amount);
+    }
+    
+    function approve(address spender, uint256 amount) public override whenNotPaused returns (bool) {
+        return super.approve(spender, amount);
+    }
+    
+    function mint(address to, uint256 amount) external onlyOwner whenNotPaused {
+        _mint(to, amount);
+        emit TokensMinted(to, amount, msg.sender);
+    }
+    
+    function burn(uint256 amount) external whenNotPaused {
+        _burn(msg.sender, amount);
+        emit TokensBurned(msg.sender, amount, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
     }
     
     function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
