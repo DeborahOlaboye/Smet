@@ -326,6 +326,13 @@ contract SmetReward is
     /** @notice Accept native (ETH) payments to the contract. */
     receive() external payable {}
 
+    /**
+     * @notice Helper to query the number of prizes in the pool.
+     */
+    function prizePoolLength() external view returns (uint256) {
+        return prizePool.length;
+    }
+
     // ===== ERC721 & ERC1155 Receiver Support =====
 
     /**
