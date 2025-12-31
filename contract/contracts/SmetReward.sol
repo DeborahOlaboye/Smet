@@ -263,6 +263,7 @@ contract SmetReward is
         require(msg.sender == admin, "not admin");
         require(pid < poolCount, "pid oob");
         poolFee[pid] = _fee;
+        emit PoolUpdated(pid);
     }
 
     /**
@@ -277,6 +278,7 @@ contract SmetReward is
             prizePoolPerPool[pid].push(_prizes[i]);
             unchecked { i++; }
         }
+        emit PoolUpdated(pid);
     }
 
     /**
