@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
@@ -20,7 +21,8 @@ contract SmetReward is
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver,
-    ReentrancyGuard
+    ReentrancyGuard,
+    Pausable
 {
     address public immutable VRF_COORD;
     bytes32 public immutable keyHash;
@@ -80,7 +82,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable nonReentrant returns (uint256 reqId) {
+    function open(bool payInNative) external payable nonReentrant whenNotPaused returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
@@ -150,6 +152,14 @@ contract SmetReward is
     
     function updateFee(uint256 newFee) external onlyOwner nonReentrant {
         fee = newFee;
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
     }
 
     receive() external payable nonReentrant {}
