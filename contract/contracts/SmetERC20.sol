@@ -36,3 +36,13 @@ contract SmetGold is ERC20, Pausable, Ownable {
     function approve(address spender, uint256 amount) public override whenNotPaused returns (bool) {
         return super.approve(spender, amount);
     }
+    
+    function mint(address to, uint256 amount) external onlyOwner whenNotPaused {
+        _mint(to, amount);
+        emit TokensMinted(to, amount, msg.sender);
+    }
+    
+    function burn(uint256 amount) external whenNotPaused {
+        _burn(msg.sender, amount);
+        emit TokensBurned(msg.sender, amount, msg.sender);
+    }
