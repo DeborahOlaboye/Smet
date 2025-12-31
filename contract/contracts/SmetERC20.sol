@@ -7,9 +7,12 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract SmetGold is ERC20, Pausable, Ownable {
     event ContractPaused(address indexed pauser, string reason);
     event ContractUnpaused(address indexed unpauser);
+    event TokensMinted(address indexed to, uint256 amount, address indexed minter);
+    event TokensBurned(address indexed from, uint256 amount, address indexed burner);
     
     constructor() ERC20("SmetGold", "SGOLD") Ownable(msg.sender) {
         _mint(msg.sender, 10000000 ether);
+        emit TokensMinted(msg.sender, 10000000 ether, msg.sender);
     }
     
     function pause() external onlyOwner {
