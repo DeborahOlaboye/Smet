@@ -58,6 +58,16 @@ contract SmetReward is
     /** @notice Prize pool array where each element describes a reward. */
     Reward[] public prizePool;
 
+    // ===== Multi-pool support =====
+    /** @notice Per-pool cumulative distribution functions (CDF) built from weights. */
+    mapping(uint256 => uint32[]) public cdfPerPool;
+    /** @notice Per-pool prize arrays. */
+    mapping(uint256 => Reward[]) public prizePoolPerPool;
+    /** @notice Per-pool fee (native payment required when opening a pool). */
+    mapping(uint256 => uint256) public poolFee;
+    /** @notice Count of pools created (0-based ids). */
+    uint256 public poolCount;
+
     /** @notice Optional tiers contract used to compute user tiers. */
     address public tiersContract;
 
@@ -83,8 +93,9 @@ contract SmetReward is
      * @notice Emitted when a box is opened and a VRF request is sent.
      * @param opener The sender who opened the box.
      * @param reqId The Chainlink VRF request id.
+     * @param poolId The pool id that was opened.
      */
-    event Opened(address indexed opener, uint256 indexed reqId);
+    event Opened(address indexed opener, uint256 indexed reqId, uint256 indexed poolId);
 
     /**
      * @notice Emitted after a reward has been delivered.
@@ -94,15 +105,17 @@ contract SmetReward is
     event RewardOut(address indexed opener, Reward reward);
 
     /**
-     * @notice Construct SmetReward with initial configuration.
-     * @dev Builds internal CDF from `_weights` and stores `_prizes` into `prizePool`.
-     * @param _coordinator VRF coordinator address.
-     * @param _subId Chainlink subscription id.
-     * @param _keyHash Key hash for VRF requests.
-     * @param _fee Fee (in wei) required to open a box.
-     * @param _weights Array of weights used to build CDF (must match `_prizes` length).
-     * @param _prizes Array of `Reward` structs representing prize pool.
+     * @notice Emitted when a new pool is created.
      */
+    event PoolCreated(uint256 indexed poolId, uint256 fee);
+
+    /** @notice Maps VRF request ids to the address that opened the box. */
+    mapping(uint256 => address) private waiting;
+    /** @notice Maps VRF request ids to the pool id that was opened. */
+    mapping(uint256 => uint256) private waitingPool;
+
+    /** @notice Per-user timestamp of last open to enforce cooldowns. */
+    mapping(address => uint256) public lastOpened;
     constructor(
         address _coordinator,
         uint256  _subId,
@@ -120,6 +133,11 @@ contract SmetReward is
         admin = msg.sender;
         // initialize cooldown (seconds)
         cooldownSeconds = _cooldownSeconds;
+
+        // Create default pool (id 0) using the provided fee, weights and prizes
+        uint256 pid = _createPool(_fee, _weights, _prizes);
+        require(pid == 0, "default pid");
+    }
 
         // Build cumulative distribution function (CDF) from weights.
         // Example: weights [10, 30, 60] -> cdf [10, 40, 100]
@@ -144,15 +162,42 @@ contract SmetReward is
     }
 
     /**
+     * @dev Internal helper to create a new pool (builds CDF and copies prizes)
+     * @return pid The id assigned to the newly created pool.
+     */
+    function _createPool(uint256 _fee, uint32[] memory _weights, Reward[] memory _prizes) internal returns (uint256 pid) {
+        require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
+        pid = poolCount;
+
+        uint256 acc = 0;
+        for (uint256 i = 0; i < _weights.length; ) {
+            acc += _weights[i];
+            cdfPerPool[pid].push(uint32(acc));
+            unchecked { i++; }
+        }
+
+        for (uint256 i = 0; i < _prizes.length; ) {
+            Reward memory rr = _prizes[i];
+            prizePoolPerPool[pid].push(rr);
+            unchecked { i++; }
+        }
+
+        poolFee[pid] = _fee;
+        poolCount++;
+        emit PoolCreated(pid, _fee);
+    }
+
+    /**
      * @notice Open a loot box by paying the configured fee and request randomness.
      * @dev The `payInNative` value is passed to Chainlink to instruct payment mode.
      * Emits an {Opened} event. Returns the Chainlink VRF request id.
      * @param payInNative When true, instruct VRF to accept native payment for gas.
      * @return reqId The Chainlink VRF request id for this open call.
      */
-    function open(bool payInNative) external payable returns (uint256 reqId) {
-        // Ensure caller paid exactly the configured fee for opening a box
-        require(msg.value == fee, "!fee");
+    function open(bool payInNative, uint256 poolId) external payable returns (uint256 reqId) {
+        require(poolId < poolCount, "pid oob");
+        // Ensure caller paid exactly the configured fee for opening the selected pool
+        require(msg.value == poolFee[poolId], "!fee");
 
         // Enforce global cooldown per user to prevent reward farming
         if (cooldownSeconds > 0) {
@@ -181,7 +226,8 @@ contract SmetReward is
         reqId = s_vrfCoordinator.requestRandomWords(r);
 
         waiting[reqId] = msg.sender;
-        emit Opened(msg.sender, reqId);
+        waitingPool[reqId] = poolId;
+        emit Opened(msg.sender, reqId, poolId);
     }
 
     /**
@@ -199,6 +245,70 @@ contract SmetReward is
     function getTierOf(address user) external view returns (uint8) {
         if (tiersContract == address(0)) return 0;
         return SmetTiers(tiersContract).getTierId(user);
+    }
+
+    /**
+     * @notice Create a new reward pool. Admin only.
+     */
+    function addPool(uint256 _fee, uint32[] memory _weights, Reward[] memory _prizes) external returns (uint256) {
+        require(msg.sender == admin, "not admin");
+        return _createPool(_fee, _weights, _prizes);
+    }
+
+    /**
+     * @notice Set a pool's fee. Admin only.
+     */
+    function setPoolFee(uint256 pid, uint256 _fee) external {
+        require(msg.sender == admin, "not admin");
+        require(pid < poolCount, "pid oob");
+        poolFee[pid] = _fee;
+    }
+
+    /**
+     * @notice Replace a pool's prizes. Admin only.
+     */
+    function setPoolPrizes(uint256 pid, Reward[] memory _prizes) external {
+        require(msg.sender == admin, "not admin");
+        require(pid < poolCount, "pid oob");
+        // clear existing array
+        delete prizePoolPerPool[pid];
+        for (uint256 i = 0; i < _prizes.length; ) {
+            prizePoolPerPool[pid].push(_prizes[i]);
+            unchecked { i++; }
+        }
+    }
+
+    /**
+     * @notice Replace a pool's weights. Admin only.
+     */
+    function setPoolWeights(uint256 pid, uint32[] memory _weights) external {
+        require(msg.sender == admin, "not admin");
+        require(pid < poolCount, "pid oob");
+        delete cdfPerPool[pid];
+        uint256 acc = 0;
+        for (uint256 i = 0; i < _weights.length; ) {
+            acc += _weights[i];
+            cdfPerPool[pid].push(uint32(acc));
+            unchecked { i++; }
+        }
+    }
+
+    /**
+     * @notice Return whether a prize in a pool is available.
+     */
+    function isPrizeAvailableInPool(uint256 pid, uint256 idx) public view returns (bool) {
+        require(pid < poolCount, "pid oob");
+        require(idx < prizePoolPerPool[pid].length, "idx oob");
+        Reward memory candidate = prizePoolPerPool[pid][idx];
+        return (candidate.availableAfter == 0 || block.timestamp >= candidate.availableAfter);
+    }
+
+    /**
+     * @notice Return the number of prizes in a given pool.
+     */
+    function prizePoolLength(uint256 pid) external view returns (uint256) {
+        require(pid < poolCount, "pid oob");
+        return prizePoolPerPool[pid].length;
     }
 
     /**
@@ -237,14 +347,13 @@ contract SmetReward is
      * @param rnd Array of random words returned by VRF.
      */
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
-        // Map the VRF request id back to the original opener
+        // Map the VRF request id back to the original opener and pool
         address opener = waiting[reqId];
         require(opener != address(0), "no opener");
+        uint256 pid = waitingPool[reqId];
 
-        // Sample from the CDF using the first random word. We take rnd[0] mod total
-        // to reduce the random value into the range [0, total). This approach is
-        // simple and efficient; for very large totals there can be negligible
-        // modulo bias but for typical-weighted pools this is acceptable.
+        // Sample from the CDF of the selected pool using the first random word.
+        uint32[] storage cdf = cdfPerPool[pid];
         uint256 total = cdf[cdf.length - 1];
         uint256 r = rnd[0] % total;
 
@@ -264,10 +373,10 @@ contract SmetReward is
 
         // Ensure the selected reward is available (time-based); if not, find next available.
         uint256 chosenIdx = idx;
-        uint256 poolLen = prizePool.length;
+        uint256 poolLen = prizePoolPerPool[pid].length;
         uint256 checked = 0;
         while (checked < poolLen) {
-            Reward memory candidate = prizePool[chosenIdx];
+            Reward memory candidate = prizePoolPerPool[pid][chosenIdx];
             if (candidate.availableAfter == 0 || block.timestamp >= candidate.availableAfter) {
                 idx = chosenIdx;
                 break;
@@ -278,15 +387,17 @@ contract SmetReward is
         if (checked == poolLen) {
             // No available prizes at this time; clear mapping and revert
             delete waiting[reqId];
+            delete waitingPool[reqId];
             revert("no available prize");
         }
 
-        Reward memory rw = prizePool[idx];
+        Reward memory rw = prizePoolPerPool[pid][idx];
         _deliver(opener, rw);
         emit RewardOut(opener, rw);
 
-        // Clean up the mapping to free storage and prevent re-use
+        // Clean up the mappings to free storage and prevent re-use
         delete waiting[reqId];
+        delete waitingPool[reqId];
     }
 
     /**

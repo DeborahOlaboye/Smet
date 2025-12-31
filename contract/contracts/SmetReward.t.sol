@@ -54,14 +54,14 @@ contract SmetRewardTest is Test {
 
     function test_open() external {
         vm.prank(alice);
-        uint256 reqId = box.open{value: 0.05 ether}(true);
+        uint256 reqId = box.open{value: 0.05 ether}(true, 0);
         // reqId may vary depending on VRF coordinator; at minimum ensure payment was accepted
         assertEq(address(box).balance, 0.05 ether);
     }
 
     function test_fulfill() external {
         vm.prank(alice);
-        box.open{value: 0.05 ether}(true);
+        box.open{value: 0.05 ether}(true, 0);
 
         box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
 
@@ -96,10 +96,10 @@ contract SmetRewardTest is Test {
     function test_events() external {
         // Only check the opener index (ignore reqId which may vary)
         vm.expectEmit(true, false, false, false);
-        emit Opened(alice, 0);
+        emit Opened(alice, 0, 0);
 
         vm.prank(alice);
-        box.open{value: 0.05 ether}(true);
+        box.open{value: 0.05 ether}(true, 0);
 
         Reward memory expected = Reward(2, address(hero), 1, 0);
         vm.expectEmit(true, false, false, false);
@@ -111,12 +111,12 @@ contract SmetRewardTest is Test {
     function test_cooldown_enforced() external {
         // First open should succeed
         vm.prank(alice);
-        box.open{value: 0.05 ether}(true);
+        box.open{value: 0.05 ether}(true, 0);
 
         // Immediate second open by same user must revert due to cooldown
         vm.expectRevert(bytes("cooldown"));
         vm.prank(alice);
-        box.open{value: 0.05 ether}(true);
+        box.open{value: 0.05 ether}(true, 0);
     }
 
     function test_availability_skips_locked() external {
@@ -124,7 +124,7 @@ contract SmetRewardTest is Test {
         box.setPrizeAvailableAfter(0, uint64(block.timestamp + 1000));
 
         vm.prank(alice);
-        box.open{value: 0.05 ether}(true);
+        box.open{value: 0.05 ether}(true, 0);
 
         // When fulfilling, the locked prize should be skipped and hero (idx 1) delivered
         box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
@@ -169,7 +169,16 @@ contract SmetRewardTest is Test {
         vm.expectRevert(bytes("no available prize"));
         box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
     }
+    function test_addPool_nonAdmin_reverts() external {
+        Reward[] memory p2 = new Reward[](1);
+        p2[0] = Reward(1, address(gold), 1 ether, 0);
+        uint32[] memory w2 = new uint32[](1);
+        w2[0] = 100;
 
+        vm.prank(alice);
+        vm.expectRevert(bytes("not admin"));
+        box.addPool(0, w2, p2);
+    }
     function test_lastOpened_set() external {
         vm.prank(alice);
         box.open{value: 0.05 ether}(true);
@@ -177,6 +186,27 @@ contract SmetRewardTest is Test {
     }
 
     function test_prizePoolLength() external {
-        assertEq(box.prizePoolLength(), 3);
+        assertEq(box.prizePoolLength(0), 3);
+    }
+
+    function test_multi_pool_selection() external {
+        // Create a second pool (pid 1) with an ERC20-first prize to observe selection
+        Reward[] memory p2 = new Reward[](2);
+        p2[0] = Reward(1, address(gold), 777 ether, 0);
+        p2[1] = Reward(2, address(hero), 1, 0);
+
+        uint32[] memory w2 = new uint32[](2);
+        w2[0] = 100; w2[1] = 101; // total 201; rnd 55 -> idx 0
+
+        uint256 pid = box.addPool(0.02 ether, w2, p2);
+        assertEq(pid, 1);
+
+        // Ensure pool fee is required
+        vm.prank(alice);
+        box.open{value: 0.02 ether}(true, 1);
+        box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
+
+        // Expect ERC20 to be delivered from pool 1's selection
+        assertEq(gold.balanceOf(alice), 777 ether);
     }
 }
