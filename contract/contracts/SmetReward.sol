@@ -9,8 +9,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "./CircuitBreaker.sol";
 
 /**
  * @dev Reward descriptor used in the prize pool.
@@ -37,7 +36,7 @@ contract SmetReward is
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver,
-    Ownable
+    CircuitBreaker 
 {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -162,7 +161,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
+    function open(bool payInNative) external payable circuitBreakerCheck(this.open.selector) returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
         
         // Formal verification: Pre-conditions
@@ -280,7 +279,7 @@ contract SmetReward is
         emit RewardDistributed(to, rw.assetType, rw.token, rw.idOrAmount);
     }
 
-    function refill(IERC20 token, uint256 amount) external whenNotPaused {
+    function refill(IERC20 token, uint256 amount) external circuitBreakerCheck(this.refill.selector) {
         require(amount > 0, "!amount");
         
         // Formal verification: Pre-conditions

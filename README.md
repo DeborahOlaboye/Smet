@@ -35,6 +35,12 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 - Community review period before execution
 - See [Timelock Documentation](./TIMELOCK_DOCUMENTATION.md)
 
+⚡ **Circuit Breaker Pattern**: Function-specific emergency controls
+- Granular pause functionality for individual contract functions
+- Emergency operators for rapid response to threats
+- Coordinated emergency management across all contracts
+- See [Circuit Breaker Documentation](./CIRCUIT_BREAKER_DOCUMENTATION.md)
+
 🚨 **Emergency Procedures**: Comprehensive emergency response system
 - [Emergency Recovery Plan](./EMERGENCY_RECOVERY_PLAN.md)
 - [Quick Reference Guide](./EMERGENCY_QUICK_REFERENCE.md)
@@ -72,10 +78,16 @@ npx ts-node contract/scripts/monitor-cli.ts start
 npx ts-node contract/scripts/monitor-cli.ts dashboard
 ```
 
-### Docker Deployment
+### Circuit Breaker Management
 ```bash
-# Start monitoring stack
-docker-compose -f contract/docker-compose.monitor.yml up -d
+# Break a specific function
+npx ts-node contract/scripts/circuit-breaker-cli.ts break -c <contract> -f <selector>
+
+# Check circuit status
+npx ts-node contract/scripts/circuit-breaker-cli.ts status -c <contract>
+
+# Emergency break all contracts
+npx ts-node contract/scripts/circuit-breaker-cli.ts emergency-break-all -m <manager> -f <selector>
 ```
 
 ## Verification

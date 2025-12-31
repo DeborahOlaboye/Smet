@@ -1,42 +1,51 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./ICircuitBreaker.sol";
 
-contract CircuitBreaker is AccessControl {
-    bytes32 public constant BREAKER_ROLE = keccak256("BREAKER_ROLE");
+contract CircuitBreaker is Ownable, ICircuitBreaker {
+    mapping(bytes4 => bool) private _circuitBroken;
+    mapping(address => bool) private _authorizedBreakers;
     
-    mapping(address => bool) public circuitBroken;
-    mapping(address => uint256) public breakTimestamp;
-    
-    uint256 public constant BREAK_DURATION = 1 hours;
-    
-    event CircuitBroken(address indexed contract_, address indexed breaker, string reason);
-    event CircuitRestored(address indexed contract_, address indexed restorer);
-    
-    modifier notBroken(address contract_) {
-        require(!isCircuitBroken(contract_), "Circuit broken");
+    event CircuitBroken(bytes4 indexed functionSelector, address indexed breaker);
+    event CircuitRestored(bytes4 indexed functionSelector, address indexed restorer);
+    event BreakerAuthorized(address indexed breaker);
+    event BreakerRevoked(address indexed breaker);
+
+    constructor() Ownable(msg.sender) {}
+
+    modifier circuitBreakerCheck(bytes4 functionSelector) {
+        require(!_circuitBroken[functionSelector], "Circuit breaker: function disabled");
         _;
     }
-    
-    constructor() {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(BREAKER_ROLE, msg.sender);
+
+    function breakCircuit(bytes4 functionSelector) external {
+        require(_authorizedBreakers[msg.sender] || msg.sender == owner(), "Unauthorized");
+        _circuitBroken[functionSelector] = true;
+        emit CircuitBroken(functionSelector, msg.sender);
     }
-    
-    function breakCircuit(address contract_, string calldata reason) external onlyRole(BREAKER_ROLE) {
-        circuitBroken[contract_] = true;
-        breakTimestamp[contract_] = block.timestamp;
-        emit CircuitBroken(contract_, msg.sender, reason);
+
+    function restoreCircuit(bytes4 functionSelector) external onlyOwner {
+        _circuitBroken[functionSelector] = false;
+        emit CircuitRestored(functionSelector, msg.sender);
     }
-    
-    function restoreCircuit(address contract_) external onlyRole(BREAKER_ROLE) {
-        circuitBroken[contract_] = false;
-        emit CircuitRestored(contract_, msg.sender);
+
+    function isCircuitBroken(bytes4 functionSelector) external view returns (bool) {
+        return _circuitBroken[functionSelector];
     }
-    
-    function isCircuitBroken(address contract_) public view returns (bool) {
-        if (!circuitBroken[contract_]) return false;
-        return block.timestamp < breakTimestamp[contract_] + BREAK_DURATION;
+
+    function authorizeBreaker(address breaker) external onlyOwner {
+        _authorizedBreakers[breaker] = true;
+        emit BreakerAuthorized(breaker);
+    }
+
+    function revokeBreaker(address breaker) external onlyOwner {
+        _authorizedBreakers[breaker] = false;
+        emit BreakerRevoked(breaker);
+    }
+
+    function isAuthorizedBreaker(address breaker) external view returns (bool) {
+        return _authorizedBreakers[breaker];
     }
 }
