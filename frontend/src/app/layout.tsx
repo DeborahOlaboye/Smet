@@ -63,6 +63,10 @@ function MobileHeader() {
           
           {/* Desktop Navigation */}
           <div className="hidden sm:flex items-center gap-4">
+            <nav className="flex items-center gap-4">
+              <a href="/" className="text-sm text-gray-600 hover:text-gray-900">Home</a>
+              <a href="/transactions" className="text-sm text-gray-600 hover:text-gray-900">Transactions</a>
+            </nav>
             <WalletConnectButton />
           </div>
           
@@ -79,8 +83,14 @@ function MobileHeader() {
         {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="sm:hidden border-t bg-white">
-            <div className="container mx-auto py-4">
-              <WalletConnectButton />
+            <div className="container mx-auto py-4 space-y-2">
+              <nav className="space-y-2">
+                <a href="/" className="block text-sm text-gray-600 hover:text-gray-900">Home</a>
+                <a href="/transactions" className="block text-sm text-gray-600 hover:text-gray-900">Transactions</a>
+              </nav>
+              <div className="pt-2 border-t">
+                <WalletConnectButton />
+              </div>
             </div>
           </div>
         )}

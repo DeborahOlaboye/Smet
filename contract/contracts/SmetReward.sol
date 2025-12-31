@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "./CircuitBreaker.sol";
+import "./TransactionHistory.sol";
 
 /**
  * @dev Reward descriptor used in the prize pool.
@@ -45,6 +46,7 @@ contract SmetReward is
     bytes32 public immutable keyHash;
     /** @notice Chainlink subscription id used to pay for VRF. */
     uint256 public immutable subId;
+    TransactionHistory public transactionHistory;
 
     // Gas-optimized constants and immutables
     /** @notice Number of confirmations VRF should wait before responding. */
@@ -120,8 +122,9 @@ contract SmetReward is
         uint256 _fee,
         uint256 _cooldownSeconds,
         uint32[] memory _weights,
-        Reward[] memory _prizes
-    ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
+        Reward[] memory _prizes,
+        address _transactionHistory
+    ) VRFConsumerBaseV2Plus(_coordinator) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         
         owner = msg.sender;
@@ -130,14 +133,7 @@ contract SmetReward is
         subId = _subId;
         keyHash = _keyHash;
         fee = _fee;
-        admin = msg.sender;
-        // initialize cooldown (seconds)
-        cooldownSeconds = _cooldownSeconds;
-
-        // Create default pool (id 0) using the provided fee, weights and prizes
-        uint256 pid = _createPool(_fee, _weights, _prizes);
-        require(pid == 0, "default pid");
-    }
+        transactionHistory = TransactionHistory(_transactionHistory);
 
         // Build cumulative distribution function (CDF) from weights.
         // Example: weights [10, 30, 60] -> cdf [10, 40, 100]
@@ -196,8 +192,14 @@ contract SmetReward is
 
         waiting[reqId] = msg.sender;
         
-        // Formal verification: Post-conditions
-        assert(waiting[reqId] == msg.sender);
+        // Record transaction
+        transactionHistory.recordTransaction(
+            msg.sender,
+            address(this),
+            "REWARD_OPEN",
+            msg.value,
+            reqId
+        );
         
         emit Opened(msg.sender, reqId);
     }
@@ -244,10 +246,15 @@ contract SmetReward is
         delete waiting[reqId];
         
         _deliver(opener, rw);
-        totalRewardsDistributed++;
         
-        // Formal verification: Post-conditions
-        assert(totalRewardsDistributed == previousRewardsDistributed + 1);
+        // Record reward claim transaction
+        transactionHistory.recordTransaction(
+            opener,
+            address(this),
+            "REWARD_CLAIM",
+            rw.idOrAmount,
+            idx
+        );
         
         emit RewardOut(opener, rw);
     }
@@ -289,118 +296,15 @@ contract SmetReward is
         uint256 contractBalanceBefore = token.balanceOf(address(this));
         
         token.transferFrom(msg.sender, address(this), amount);
-        emit TokenRefilled(address(token), amount, msg.sender);
-    }
-    
-    function updateFee(uint256 newFee) external onlyOwner {
-        uint256 oldFee = fee;
-        fee = newFee;
-        emit FeeUpdated(oldFee, newFee, msg.sender);
-    }
-    
-    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyOwner {
-        requestConfirmations = _requestConfirmations;
-        callbackGasLimit = _callbackGasLimit;
-        numWords = _numWords;
-        emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords, msg.sender);
-    }
-    
-    function transferOwnership(address newOwner) public override onlyOwner {
-        address oldOwner = owner();
-        super.transferOwnership(newOwner);
-        emit OwnershipTransferInitiated(oldOwner, newOwner);
-    }
-    
-    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
-        if (token == address(0)) {
-            payable(msg.sender).transfer(amount);
-        } else {
-            IERC20(token).transfer(msg.sender, amount);
-        }
-        emit EmergencyWithdrawal(token, amount, msg.sender, msg.sender);
-    }
-    
-    function updateFee(uint256 newFee) external onlyRole(ADMIN_ROLE) {
-        fee = newFee;
-    }
-    
-    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyRole(ADMIN_ROLE) {
-        requestConfirmations = _requestConfirmations;
-        callbackGasLimit = _callbackGasLimit;
-        numWords = _numWords;
-    }
-    
-    function emergencyWithdraw(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        if (token == address(0)) {
-            payable(msg.sender).transfer(amount);
-        } else {
-            IERC20(token).transfer(msg.sender, amount);
-        }
-    }
-    
-    function grantOperatorRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        grantRole(OPERATOR_ROLE, account);
-    }
-    
-    function revokeOperatorRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        revokeRole(OPERATOR_ROLE, account);
-    }
-    
-    function grantAdminRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        grantRole(ADMIN_ROLE, account);
-    }
-    
-    function revokeAdminRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
-        revokeRole(ADMIN_ROLE, account);
-    }
-    
-    function updatePrizePool(uint256 index, Reward memory newReward) external onlyRole(ADMIN_ROLE) {
-        require(index < prizePool.length, "Invalid index");
-        prizePool[index] = newReward;
-    }
-    
-    function addPrize(Reward memory newReward, uint32 weight) external onlyRole(ADMIN_ROLE) {
-        prizePool.push(newReward);
-        uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
-        cdf.push(lastCdf + weight);
-    }
-    
-    function emergencyWithdraw(address token, uint256 amount) external onlyOwner nonReentrant {
-        if (token == address(0)) {
-            payable(msg.sender).transfer(amount);
-        } else {
-            IERC20(token).transfer(msg.sender, amount);
-        }
-    }
-    
-    function updateFee(uint256 newFee) external onlyOwner nonReentrant {
-        uint256 oldFee = fee;
-        fee = newFee;
-        emit FeeUpdated(oldFee, newFee);
-    }
-    
-    function setTimelock(address _timelock) external onlyOwner {
-        timelock = _timelock;
-        emit TimelockSet(_timelock);
-    }
-    
-    function updateFee(uint256 newFee) external onlyTimelock {
-        uint256 oldFee = fee;
-        fee = newFee;
-        emit FeeUpdated(oldFee, newFee);
-    }
-    
-    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyTimelock {
-        requestConfirmations = _requestConfirmations;
-        callbackGasLimit = _callbackGasLimit;
-        numWords = _numWords;
-        emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords);
-    }
-    
-    function addPrize(Reward memory newReward, uint32 weight) external onlyTimelock {
-        prizePool.push(newReward);
-        uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
-        cdf.push(lastCdf + weight);
+        
+        // Record refill transaction
+        transactionHistory.recordTransaction(
+            msg.sender,
+            address(this),
+            "REFILL",
+            amount,
+            0
+        );
     }
 
     /**
