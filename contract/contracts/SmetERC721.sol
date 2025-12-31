@@ -36,4 +36,27 @@ contract SmetHero is ERC721 {
         InputValidator.validateAddress(to);
         super.approve(to, tokenId);
     }
+    
+    function batchMint(address[] calldata recipients) external returns (uint256[] memory ids) {
+        InputValidator.validateArrayLength(recipients.length);
+        for (uint256 i = 0; i < recipients.length; i++) {
+            InputValidator.validateAddress(recipients[i]);
+        }
+        ids = new uint256[](recipients.length);
+        for (uint256 i = 0; i < recipients.length; i++) {
+            ids[i] = nextId++;
+            _safeMint(recipients[i], ids[i]);
+        }
+    }
+    
+    function batchTransfer(address[] calldata to, uint256[] calldata tokenIds) external {
+        InputValidator.validateArrayLength(to.length);
+        InputValidator.validateArrayLengths(to.length, tokenIds.length);
+        for (uint256 i = 0; i < to.length; i++) {
+            InputValidator.validateAddress(to[i]);
+        }
+        for (uint256 i = 0; i < to.length; i++) {
+            safeTransferFrom(msg.sender, to[i], tokenIds[i]);
+        }
+    }
 }
