@@ -88,6 +88,10 @@ Sequence (open flow):
 - Admins can set a global per-user cooldown (seconds) to prevent rapid repeat opens and reward farming (`setCooldownSeconds`).
 - Individual prizes can be configured with an `availableAfter` Unix timestamp which gates their availability; the selection logic will skip locked prizes at fulfillment time.
 
+### Multiple reward pools
+- `SmetReward` now supports multiple independently-configurable pools (identified by a `poolId`). Each pool has its own fee, weights (CDF) and prize set.
+- Users call `open(paymentInNative, poolId)` to open a specific pool. Admins may create pools via `addPool` and update them via `setPoolWeights`/`setPoolPrizes`.
+
 ---
 
 ## References

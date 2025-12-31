@@ -11,5 +11,9 @@ Usage example:
 ```ts
 import { useSmetReward } from '@/lib/web3';
 
-const { openReward, isLoading } = useSmetReward();
+const { openReward, isLoading } = useSmetReward({ poolId: 0 });
+
+// Example ethers.js usage
+// const reward = new ethers.Contract(address, abi, signer);
+// await reward.open(true, 0, { value: ethers.utils.parseEther('0.01') });
 ```

@@ -5,15 +5,16 @@ import { getRewardContractConfig } from './contracts';
 
 interface UseSmetRewardOptions {
   paymentInNative?: boolean;
+  poolId?: number;
   price?: string; // in ether
   onSuccess?: (data: any) => void;
   onError?: (error: Error) => void;
 }
 
-// Hook that encapsulates the prepare → write → wait flow for calling `SmetReward.open()`.
+// Hook that encapsulates the prepare → write → wait flow for calling `SmetReward.open(poolId)`.
 // It centralizes common logic (fee handling, transaction state, gas estimate) so
 // components using it don't have to wire Wagmi hooks directly.
-export function useSmetReward({ paymentInNative = true, price = '0.01', onSuccess, onError }: UseSmetRewardOptions = {}) {
+export function useSmetReward({ paymentInNative = true, poolId = 0, price = '0.01', onSuccess, onError }: UseSmetRewardOptions = {}) {
   const { address } = useAccount();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
   const { address: rewardAddress, abi } = getRewardContractConfig();
@@ -27,7 +28,7 @@ export function useSmetReward({ paymentInNative = true, price = '0.01', onSucces
     address: rewardAddress,
     abi,
     functionName: 'open',
-    args: [paymentInNative],
+    args: [paymentInNative, poolId],
     value: parseEther(price),
     enabled: !!address,
   });
