@@ -26,23 +26,23 @@ const chartData = [
 export default function AdminDashboard() {
   return (
     <ProtectedRoute>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 md:ml-64">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back! Here's what's happening with your rewards.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">Welcome back! Here's what's happening with your rewards.</p>
           </div>
-          <Button>
+          <Button className="w-full sm:w-auto">
             <Plus className="mr-2 h-4 w-4" />
             Add Reward
           </Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {stats.map((stat) => (
             <Card key={stat.name}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.name}</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium">{stat.name}</CardTitle>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   viewBox="0 0 24 24"
@@ -51,32 +51,32 @@ export default function AdminDashboard() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  className="h-4 w-4 text-muted-foreground"
+                  className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500"
                 >
                   <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                 </svg>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">{stat.change}</p>
+                <div className="text-xl sm:text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-gray-500">{stat.change}</p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Monthly Claims</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Monthly Claims</CardTitle>
             </CardHeader>
-            <CardContent className="h-[300px]">
+            <CardContent className="h-[250px] sm:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
+                  <XAxis dataKey="name" fontSize={12} />
+                  <YAxis fontSize={12} />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#8884d8" />
+                  <Bar dataKey="value" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
@@ -84,18 +84,18 @@ export default function AdminDashboard() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle className="text-base sm:text-lg">Recent Activity</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-muted" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium leading-none">Reward claimed by user</p>
-                      <p className="text-sm text-muted-foreground">2 hours ago</p>
+                  <div key={i} className="flex items-center gap-3 sm:gap-4">
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gray-100" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs sm:text-sm font-medium leading-none truncate">Reward claimed by user</p>
+                      <p className="text-xs text-gray-500 mt-1">2 hours ago</p>
                     </div>
-                    <Button variant="outline" size="sm">View</Button>
+                    <Button variant="outline" size="sm" className="flex-shrink-0">View</Button>
                   </div>
                 ))}
               </div>
@@ -105,12 +105,12 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Recent Rewards</CardTitle>
-              <Button variant="outline" size="sm">View All</Button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <CardTitle className="text-base sm:text-lg">Recent Rewards</CardTitle>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">View All</Button>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <RewardTable />
           </CardContent>
         </Card>
