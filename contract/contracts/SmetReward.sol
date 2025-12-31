@@ -48,6 +48,7 @@ contract SmetReward is
     event TokenRefilled(address indexed token, uint256 amount, address indexed refiller);
     event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords, address indexed updater);
     event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
+    event EmergencyWithdrawal(address indexed token, uint256 amount, address indexed recipient, address indexed executor);
 
     constructor(
         address _coordinator,
@@ -165,6 +166,15 @@ contract SmetReward is
         address oldOwner = owner();
         super.transferOwnership(newOwner);
         emit OwnershipTransferInitiated(oldOwner, newOwner);
+    }
+    
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+        if (token == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            IERC20(token).transfer(msg.sender, amount);
+        }
+        emit EmergencyWithdrawal(token, amount, msg.sender, msg.sender);
     }
 
     receive() external payable {}
