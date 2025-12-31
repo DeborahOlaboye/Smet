@@ -37,6 +37,7 @@ contract SmetLoot is ERC1155 {
     
     function batchMint(address[] calldata recipients, uint256[] calldata ids, uint256[] calldata amounts) external {
         InputValidator.validateArrayLength(recipients.length);
+        InputValidator.validateBatchSize(recipients.length);
         InputValidator.validateArrayLengths(recipients.length, ids.length);
         InputValidator.validateArrayLengths(ids.length, amounts.length);
         for (uint256 i = 0; i < recipients.length; i++) {
@@ -50,6 +51,7 @@ contract SmetLoot is ERC1155 {
     
     function batchTransfer(address[] calldata to, uint256[] calldata ids, uint256[] calldata amounts) external {
         InputValidator.validateArrayLength(to.length);
+        InputValidator.validateBatchSize(to.length);
         InputValidator.validateArrayLengths(to.length, ids.length);
         InputValidator.validateArrayLengths(ids.length, amounts.length);
         for (uint256 i = 0; i < to.length; i++) {
