@@ -33,9 +33,11 @@ contract SmetReward is
     Reward[] public prizePool;
 
     mapping(uint256 => address) private waiting;
+    mapping(address => uint256[]) private pendingRewards;
 
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
+    event BatchRewardsClaimed(address indexed claimer, uint256 count);
 
     constructor(
         address _coordinator,
