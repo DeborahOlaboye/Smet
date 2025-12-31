@@ -179,6 +179,32 @@ contract SmetRewardTest is Test {
         vm.expectRevert(bytes("not admin"));
         box.addPool(0, w2, p2);
     }
+
+    function test_setPool_fee_weights_and_prizes_by_admin() external {
+        Reward[] memory p2 = new Reward[](2);
+        p2[0] = Reward(1, address(gold), 300 ether, 0);
+        p2[1] = Reward(1, address(gold), 400 ether, 0);
+        uint32[] memory w2 = new uint32[](2);
+        w2[0] = 10; w2[1] = 20;
+
+        uint256 pid = box.addPool(0.01 ether, w2, p2);
+        assertEq(pid, 1);
+
+        box.setPoolFee(1, 0.02 ether);
+        assertEq(box.poolFee(1), 0.02 ether);
+
+        // Replace prizes
+        Reward[] memory p3 = new Reward[](1);
+        p3[0] = Reward(1, address(gold), 123 ether, 0);
+        box.setPoolPrizes(1, p3);
+        assertEq(box.prizePoolLength(1), 1);
+
+        // Replace weights
+        uint32[] memory w3 = new uint32[](1);
+        w3[0] = 99;
+        box.setPoolWeights(1, w3);
+        assertEq(box.prizePoolLength(1), 1);
+    }
     function test_lastOpened_set() external {
         vm.prank(alice);
         box.open{value: 0.05 ether}(true);
@@ -187,6 +213,22 @@ contract SmetRewardTest is Test {
 
     function test_prizePoolLength() external {
         assertEq(box.prizePoolLength(0), 3);
+    }
+
+    function test_pool_count_and_event() external {
+        assertEq(box.poolCount(), 1);
+
+        Reward[] memory p2 = new Reward[](1);
+        p2[0] = Reward(1, address(gold), 1 ether, 0);
+        uint32[] memory w2 = new uint32[](1);
+        w2[0] = 100;
+
+        vm.expectEmit(true, false, false, false);
+        emit PoolCreated(1, 0.02 ether);
+
+        uint256 pid = box.addPool(0.02 ether, w2, p2);
+        assertEq(pid, 1);
+        assertEq(box.poolCount(), 2);
     }
 
     function test_multi_pool_selection() external {
@@ -204,7 +246,14 @@ contract SmetRewardTest is Test {
         // Ensure pool fee is required
         vm.prank(alice);
         box.open{value: 0.02 ether}(true, 1);
+
+        // the waitingPool should be set for the fake req id (coordinator mock behavior)
+        assertEq(box.waitingPoolOf(FAKE_REQ_ID), 1);
+
         box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
+
+        // after fulfill, waiting mapping should be cleaned
+        assertEq(box.waitingPoolOf(FAKE_REQ_ID), 0);
 
         // Expect ERC20 to be delivered from pool 1's selection
         assertEq(gold.balanceOf(alice), 777 ether);
