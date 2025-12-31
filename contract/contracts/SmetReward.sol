@@ -31,6 +31,7 @@ contract SmetReward is
     uint256 public fee;
     uint32[] public cdf;
     Reward[] public prizePool;
+    uint256 private totalRewardsDistributed = 0;
 
     mapping(uint256 => address) private waiting;
 
