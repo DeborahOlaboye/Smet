@@ -175,6 +175,17 @@ contract SmetReward is
     function revokeAdminRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(ADMIN_ROLE, account);
     }
+    
+    function updatePrizePool(uint256 index, Reward memory newReward) external onlyRole(ADMIN_ROLE) {
+        require(index < prizePool.length, "Invalid index");
+        prizePool[index] = newReward;
+    }
+    
+    function addPrize(Reward memory newReward, uint32 weight) external onlyRole(ADMIN_ROLE) {
+        prizePool.push(newReward);
+        uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
+        cdf.push(lastCdf + weight);
+    }
 
     receive() external payable {}
 
