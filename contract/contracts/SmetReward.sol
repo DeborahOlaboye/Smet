@@ -105,6 +105,10 @@ contract SmetReward is
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
         address opener = waiting[reqId];
         require(opener != address(0), "no opener");
+        
+        // Formal verification: Pre-conditions
+        assert(opener != address(0));
+        assert(rnd.length > 0);
 
         uint256 total = cdf[cdf.length - 1];
         uint256 r = rnd[0] % total;
@@ -113,12 +117,25 @@ contract SmetReward is
         for (idx = 0; idx < cdf.length; idx++) {
             if (r < cdf[idx]) break;
         }
+        
+        // Formal verification: Index bounds
+        assert(idx < prizePool.length);
 
         Reward memory rw = prizePool[idx];
+        uint256 previousRewardsDistributed = totalRewardsDistributed;
+        
         _deliver(opener, rw);
+        totalRewardsDistributed++;
+        
+        // Formal verification: Post-conditions
+        assert(totalRewardsDistributed == previousRewardsDistributed + 1);
+        
         emit RewardOut(opener, rw);
 
         delete waiting[reqId];
+        
+        // Formal verification: Cleanup
+        assert(waiting[reqId] == address(0));
     }
 
     function _deliver(address to, Reward memory rw) private {
