@@ -48,7 +48,7 @@ contract SmetReward is
         uint256 _fee,
         uint32[] memory _weights,
         Reward[] memory _prizes
-    ) VRFConsumerBaseV2Plus(_coordinator) {
+    ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         VRF_COORD = _coordinator;
         subId = _subId;
