@@ -11,6 +11,7 @@ contract SmetLoot is ERC1155, Pausable, Ownable {
     event LootBurned(address indexed from, uint256 indexed id, uint256 amount, address indexed burner);
     event URIUpdated(string newURI, address indexed updater);
     event BatchLootMinted(address indexed to, uint256[] ids, uint256[] amounts, address indexed minter);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
     
     constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
     
@@ -43,6 +44,12 @@ contract SmetLoot is ERC1155, Pausable, Ownable {
     function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts) external whenNotPaused {
         _mintBatch(to, ids, amounts, "");
         emit BatchLootMinted(to, ids, amounts, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
     }
     
     function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
