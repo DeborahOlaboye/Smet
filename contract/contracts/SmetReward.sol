@@ -159,6 +159,22 @@ contract SmetReward is
             IERC20(token).transfer(msg.sender, amount);
         }
     }
+    
+    function grantOperatorRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(OPERATOR_ROLE, account);
+    }
+    
+    function revokeOperatorRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(OPERATOR_ROLE, account);
+    }
+    
+    function grantAdminRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(ADMIN_ROLE, account);
+    }
+    
+    function revokeAdminRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(ADMIN_ROLE, account);
+    }
 
     receive() external payable {}
 
