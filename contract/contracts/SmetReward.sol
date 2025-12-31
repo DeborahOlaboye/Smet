@@ -9,6 +9,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "./CircuitBreaker.sol";
+import "./TransactionHistory.sol";
 
 struct Reward {
     uint8 assetType;
@@ -25,6 +26,7 @@ contract SmetReward is
     address public immutable VRF_COORD;
     bytes32 public immutable keyHash;
     uint256 public immutable subId;
+    TransactionHistory public transactionHistory;
 
     uint16 public requestConfirmations = 3;
     uint32 public callbackGasLimit = 250_000;
@@ -45,13 +47,15 @@ contract SmetReward is
         bytes32 _keyHash,
         uint256 _fee,
         uint32[] memory _weights,
-        Reward[] memory _prizes
+        Reward[] memory _prizes,
+        address _transactionHistory
     ) VRFConsumerBaseV2Plus(_coordinator) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         VRF_COORD = _coordinator;
         subId = _subId;
         keyHash = _keyHash;
         fee = _fee;
+        transactionHistory = TransactionHistory(_transactionHistory);
 
         uint32 acc = 0;
         for (uint i = 0; i < _weights.length; i++) {
@@ -86,6 +90,16 @@ contract SmetReward is
         reqId = s_vrfCoordinator.requestRandomWords(r);
 
         waiting[reqId] = msg.sender;
+        
+        // Record transaction
+        transactionHistory.recordTransaction(
+            msg.sender,
+            address(this),
+            "REWARD_OPEN",
+            msg.value,
+            reqId
+        );
+        
         emit Opened(msg.sender, reqId);
     }
 
@@ -103,6 +117,16 @@ contract SmetReward is
 
         Reward memory rw = prizePool[idx];
         _deliver(opener, rw);
+        
+        // Record reward claim transaction
+        transactionHistory.recordTransaction(
+            opener,
+            address(this),
+            "REWARD_CLAIM",
+            rw.idOrAmount,
+            idx
+        );
+        
         emit RewardOut(opener, rw);
 
         delete waiting[reqId];
@@ -123,6 +147,15 @@ contract SmetReward is
     function refill(IERC20 token, uint256 amount) external circuitBreakerCheck(this.refill.selector) {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
+        
+        // Record refill transaction
+        transactionHistory.recordTransaction(
+            msg.sender,
+            address(this),
+            "REFILL",
+            amount,
+            0
+        );
     }
 
     receive() external payable {}
