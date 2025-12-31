@@ -13,4 +13,11 @@ contract SmetGold is ERC20 {
             transfer(recipients[i], amounts[i]);
         }
     }
+
+    function batchApprove(address[] calldata spenders, uint256[] calldata amounts) external {
+        require(spenders.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < spenders.length; i++) {
+            approve(spenders[i], amounts[i]);
+        }
+    }
 }
