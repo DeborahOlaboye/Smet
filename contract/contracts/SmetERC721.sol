@@ -6,15 +6,20 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SmetHero is ERC721, Pausable, Ownable {
     uint256 public nextId = 1;
+    
+    event ContractPaused(address indexed pauser, string reason);
+    event ContractUnpaused(address indexed unpauser);
 
     constructor() ERC721("SmetHero", "SHERO") Ownable(msg.sender) {}
     
     function pause() external onlyOwner {
         _pause();
+        emit ContractPaused(msg.sender, "Manual pause");
     }
     
     function unpause() external onlyOwner {
         _unpause();
+        emit ContractUnpaused(msg.sender);
     }
 
     function mint(address to) external whenNotPaused returns (uint256 id) {
