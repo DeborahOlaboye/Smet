@@ -47,4 +47,28 @@ contract SmetLoot is ERC1155, AccessControl, Pausable {
     function supportsInterface(bytes4 interfaceId) public view override(ERC1155, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
+    
+    function grantMinterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(MINTER_ROLE, account);
+    }
+    
+    function revokeMinterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(MINTER_ROLE, account);
+    }
+    
+    function grantPauserRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(PAUSER_ROLE, account);
+    }
+    
+    function revokePauserRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(PAUSER_ROLE, account);
+    }
+    
+    function grantUriSetterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(URI_SETTER_ROLE, account);
+    }
+    
+    function revokeUriSetterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(URI_SETTER_ROLE, account);
+    }
 }
