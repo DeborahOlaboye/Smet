@@ -148,6 +148,14 @@ contract SmetReward is
         token.transferFrom(msg.sender, address(this), amount);
     }
 
+    function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
+        require(tokens.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < tokens.length; i++) {
+            require(amounts[i] > 0, "!amount");
+            tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
+        }
+    }
+
     receive() external payable {}
 
     // ===== ERC721 & ERC1155 Receiver Support =====
