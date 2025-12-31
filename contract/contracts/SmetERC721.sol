@@ -44,4 +44,20 @@ contract SmetHero is ERC721, AccessControl, Pausable {
     function supportsInterface(bytes4 interfaceId) public view override(ERC721, AccessControl) returns (bool) {
         return super.supportsInterface(interfaceId);
     }
+    
+    function grantMinterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(MINTER_ROLE, account);
+    }
+    
+    function revokeMinterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(MINTER_ROLE, account);
+    }
+    
+    function grantPauserRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(PAUSER_ROLE, account);
+    }
+    
+    function revokePauserRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(PAUSER_ROLE, account);
+    }
 }
