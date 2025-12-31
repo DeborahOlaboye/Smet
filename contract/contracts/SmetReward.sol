@@ -76,6 +76,10 @@ contract SmetReward is
 
     function open(bool payInNative) external payable returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
+        
+        // Formal verification: Pre-conditions
+        assert(msg.value == fee);
+        assert(prizePool.length > 0);
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
             keyHash: keyHash,
@@ -91,6 +95,10 @@ contract SmetReward is
         reqId = s_vrfCoordinator.requestRandomWords(r);
 
         waiting[reqId] = msg.sender;
+        
+        // Formal verification: Post-conditions
+        assert(waiting[reqId] == msg.sender);
+        
         emit Opened(msg.sender, reqId);
     }
 
