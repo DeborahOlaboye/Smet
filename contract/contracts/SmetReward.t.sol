@@ -228,6 +228,20 @@ contract SmetRewardTest is Test {
         box.setPoolWeights(1, bad);
     }
 
+    function test_getPoolInfo() external {
+        Reward[] memory p2 = new Reward[](1);
+        p2[0] = Reward(1, address(gold), 111 ether, 0);
+        uint32[] memory w2 = new uint32[](1);
+        w2[0] = 100;
+
+        uint256 pid = box.addPool(0.007 ether, w2, p2);
+        assertEq(pid, 1);
+
+        (uint256 feeOut, uint256 cnt) = box.getPoolInfo(1);
+        assertEq(feeOut, 0.007 ether);
+        assertEq(cnt, 1);
+    }
+
     function test_open_wrong_fee_reverts() external {
         // Make sure opening a specific pool requires the configured fee
         Reward[] memory p2 = new Reward[](1);

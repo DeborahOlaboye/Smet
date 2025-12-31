@@ -317,6 +317,15 @@ contract SmetReward is
     }
 
     /**
+     * @notice Return basic info for a given pool (fee and prize count).
+     */
+    function getPoolInfo(uint256 pid) external view returns (uint256 feeOut, uint256 prizeCount) {
+        require(pid < poolCount, "pid oob");
+        feeOut = poolFee[pid];
+        prizeCount = prizePoolPerPool[pid].length;
+    }
+
+    /**
      * @notice Set global cooldown (in seconds) between opens for each user. Admin only.
      */
     function setCooldownSeconds(uint256 _s) external {
