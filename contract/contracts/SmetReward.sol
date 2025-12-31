@@ -151,6 +151,14 @@ contract SmetReward is
         callbackGasLimit = _callbackGasLimit;
         numWords = _numWords;
     }
+    
+    function emergencyWithdraw(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            IERC20(token).transfer(msg.sender, amount);
+        }
+    }
 
     receive() external payable {}
 
@@ -187,11 +195,12 @@ contract SmetReward is
 
     function supportsInterface(bytes4 interfaceId)
         public
-        pure
-        override
+        view
+        override(AccessControl)
         returns (bool)
     {
         return interfaceId == type(IERC1155Receiver).interfaceId ||
-               interfaceId == type(IERC721Receiver).interfaceId;
+               interfaceId == type(IERC721Receiver).interfaceId ||
+               super.supportsInterface(interfaceId);
     }
 }
