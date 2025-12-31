@@ -19,6 +19,9 @@ async function run() {
   const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
   const contract = new ethers.Contract('0xeF85822c30D194c2B2F7cC17223C64292Bfe611b', SmetRewardAbi, signer);
 
+// Read a user's tier (0 = None, 1 = Bronze, 2 = Silver, 3 = Gold, 4 = Platinum)
+const tier = await contract.getTierOf('0x...');
+console.log('tier', tier.toString());
   const tx = await contract.open(true, { value: ethers.utils.parseEther('0.01') });
   console.log('tx hash:', tx.hash);
   const receipt = await tx.wait();
