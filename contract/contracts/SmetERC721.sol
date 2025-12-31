@@ -60,4 +60,9 @@ contract SmetHero is ERC721, AccessControl, Pausable {
     function revokePauserRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(PAUSER_ROLE, account);
     }
+    
+    function burn(uint256 tokenId) external whenNotPaused {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        _burn(tokenId);
+    }
 }

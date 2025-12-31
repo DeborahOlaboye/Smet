@@ -71,4 +71,14 @@ contract SmetLoot is ERC1155, AccessControl, Pausable {
     function revokeUriSetterRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(URI_SETTER_ROLE, account);
     }
+    
+    function burn(address from, uint256 id, uint256 amount) external whenNotPaused {
+        require(from == msg.sender || isApprovedForAll(from, msg.sender), "Not approved");
+        _burn(from, id, amount);
+    }
+    
+    function burnBatch(address from, uint256[] memory ids, uint256[] memory amounts) external whenNotPaused {
+        require(from == msg.sender || isApprovedForAll(from, msg.sender), "Not approved");
+        _burnBatch(from, ids, amounts);
+    }
 }

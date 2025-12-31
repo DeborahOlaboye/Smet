@@ -50,5 +50,13 @@ contract SmetGold is ERC20, AccessControl, Pausable {
     function revokePauserRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
         revokeRole(PAUSER_ROLE, account);
     }
+    
+    function burn(uint256 amount) external whenNotPaused {
+        _burn(msg.sender, amount);
+    }
+    
+    function burnFrom(address account, uint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
+        _burn(account, amount);
+    }
 }
 }
