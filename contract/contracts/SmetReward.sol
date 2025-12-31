@@ -15,11 +15,13 @@ import "./SmetTiers.sol";
  * @param assetType Asset type: 1 = ERC20, 2 = ERC721, 3 = ERC1155.
  * @param token Token contract address.
  * @param idOrAmount Token id for NFTs or amount for fungible tokens.
+ * @param availableAfter Unix timestamp when this reward becomes claimable (0 = immediately).
  */
 struct Reward {
     uint8 assetType;
     address token;
     uint256 idOrAmount;
+    uint64 availableAfter;
 } 
 
 /**
@@ -65,6 +67,18 @@ contract SmetReward is
     /** @notice Maps VRF request ids to the address that opened the box. */
     mapping(uint256 => address) private waiting;
 
+    /** @notice Per-user timestamp of last open to enforce cooldowns. */
+    mapping(address => uint256) public lastOpened;
+
+    /** @notice Global cooldown (in seconds) between opens per user. */
+    uint256 public cooldownSeconds;
+
+    /** @notice Emitted when global cooldown is updated. */
+    event CooldownSet(uint256 seconds);
+
+    /** @notice Emitted when a prize's availability timestamp is set. */
+    event PrizeAvailabilitySet(uint256 indexed idx, uint64 availableAfter);
+
     /**
      * @notice Emitted when a box is opened and a VRF request is sent.
      * @param opener The sender who opened the box.
@@ -94,6 +108,7 @@ contract SmetReward is
         uint256  _subId,
         bytes32 _keyHash,
         uint256 _fee,
+        uint256 _cooldownSeconds,
         uint32[] memory _weights,
         Reward[] memory _prizes
     ) VRFConsumerBaseV2Plus(_coordinator) {
@@ -103,6 +118,8 @@ contract SmetReward is
         keyHash = _keyHash;
         fee = _fee;
         admin = msg.sender;
+        // initialize cooldown (seconds)
+        cooldownSeconds = _cooldownSeconds;
 
         // Build cumulative distribution function (CDF) from weights.
         // Example: weights [10, 30, 60] -> cdf [10, 40, 100]
@@ -136,6 +153,13 @@ contract SmetReward is
     function open(bool payInNative) external payable returns (uint256 reqId) {
         // Ensure caller paid exactly the configured fee for opening a box
         require(msg.value == fee, "!fee");
+
+        // Enforce global cooldown per user to prevent reward farming
+        if (cooldownSeconds > 0) {
+            require(block.timestamp >= lastOpened[msg.sender] + cooldownSeconds, "cooldown");
+        }
+        // Record the time of this open immediately so delayed fulfillment cannot be farmed
+        lastOpened[msg.sender] = block.timestamp;
 
         // Build a VRF request object. We include `extraArgs` to indicate whether
         // Chainlink should use native payment (if payInNative is true) or LINK.
@@ -178,6 +202,34 @@ contract SmetReward is
     }
 
     /**
+     * @notice Set global cooldown (in seconds) between opens for each user. Admin only.
+     */
+    function setCooldownSeconds(uint256 _s) external {
+        require(msg.sender == admin, "not admin");
+        cooldownSeconds = _s;
+        emit CooldownSet(_s);
+    }
+
+    /**
+     * @notice Set the availability timestamp for a prize index. Admin only.
+     */
+    function setPrizeAvailableAfter(uint256 idx, uint64 availableAfter) external {
+        require(msg.sender == admin, "not admin");
+        require(idx < prizePool.length, "idx oob");
+        prizePool[idx].availableAfter = availableAfter;
+        emit PrizeAvailabilitySet(idx, availableAfter);
+    }
+
+    /**
+     * @notice Query whether a prize index is currently available.
+     */
+    function isPrizeAvailable(uint256 idx) public view returns (bool) {
+        require(idx < prizePool.length, "idx oob");
+        Reward memory candidate = prizePool[idx];
+        return (candidate.availableAfter == 0 || block.timestamp >= candidate.availableAfter);
+    }
+
+    /**
      * @dev Chainlink VRF callback that receives random words, selects a prize
      * using the internal CDF, delivers it to the original opener, and emits
      * the {RewardOut} event.
@@ -209,6 +261,25 @@ contract SmetReward is
             }
         }
         uint256 idx = low;
+
+        // Ensure the selected reward is available (time-based); if not, find next available.
+        uint256 chosenIdx = idx;
+        uint256 poolLen = prizePool.length;
+        uint256 checked = 0;
+        while (checked < poolLen) {
+            Reward memory candidate = prizePool[chosenIdx];
+            if (candidate.availableAfter == 0 || block.timestamp >= candidate.availableAfter) {
+                idx = chosenIdx;
+                break;
+            }
+            chosenIdx = (chosenIdx + 1) % poolLen;
+            unchecked { checked++; }
+        }
+        if (checked == poolLen) {
+            // No available prizes at this time; clear mapping and revert
+            delete waiting[reqId];
+            revert("no available prize");
+        }
 
         Reward memory rw = prizePool[idx];
         _deliver(opener, rw);
@@ -254,6 +325,13 @@ contract SmetReward is
 
     /** @notice Accept native (ETH) payments to the contract. */
     receive() external payable {}
+
+    /**
+     * @notice Helper to query the number of prizes in the pool.
+     */
+    function prizePoolLength() external view returns (uint256) {
+        return prizePool.length;
+    }
 
     // ===== ERC721 & ERC1155 Receiver Support =====
 

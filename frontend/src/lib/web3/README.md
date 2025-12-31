@@ -2,7 +2,7 @@
 
 This folder contains helpers and hooks to interact with the Smet smart contracts:
 
-- `useSmetReward()` — a React hook to prepare, write and wait for `open()` transactions.
+- `useSmetReward()` — a React hook to prepare, write and wait for `open()` transactions. Note: `open()` now accepts a `paymentInNative` boolean; the hook prepares this argument for you.
 - `SmetRewardService` — a small helper class for programmatic interactions and utilities.
 - `getRewardContractConfig()` — locate your contract address & ABI.
 

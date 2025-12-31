@@ -84,6 +84,10 @@ Sequence (open flow):
 - Consider on-chain source-of-truth for prize inventory and automated replenishment.
 - Add governance-controlled parameters for fees, weights, and prize updates via an admin role.
 
+### Time-based rewards and cooldowns
+- Admins can set a global per-user cooldown (seconds) to prevent rapid repeat opens and reward farming (`setCooldownSeconds`).
+- Individual prizes can be configured with an `availableAfter` Unix timestamp which gates their availability; the selection logic will skip locked prizes at fulfillment time.
+
 ---
 
 ## References
