@@ -48,6 +48,9 @@ contract SmetReward is
 
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
+    event PrizeAdded(uint256 indexed prizeIndex, Reward reward, uint32 weight);
+    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords);
 
     constructor(
         address _coordinator,
@@ -151,7 +154,9 @@ contract SmetReward is
     }
     
     function updateFee(uint256 newFee) external onlyOwner nonReentrant {
+        uint256 oldFee = fee;
         fee = newFee;
+        emit FeeUpdated(oldFee, newFee);
     }
     
     function pause() external onlyOwner {
@@ -166,12 +171,15 @@ contract SmetReward is
         requestConfirmations = _requestConfirmations;
         callbackGasLimit = _callbackGasLimit;
         numWords = _numWords;
+        emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords);
     }
     
     function addPrize(Reward memory newReward, uint32 weight) external onlyOwner nonReentrant {
+        uint256 prizeIndex = prizePool.length;
         prizePool.push(newReward);
         uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
         cdf.push(lastCdf + weight);
+        emit PrizeAdded(prizeIndex, newReward, weight);
     }
 
     receive() external payable nonReentrant {}
