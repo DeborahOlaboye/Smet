@@ -28,4 +28,12 @@ library InputValidator {
     function validateAssetType(uint8 assetType) internal pure {
         if (assetType < 1 || assetType > 3) revert InvalidAssetType();
     }
+    
+    function validateGasLimit(uint256 gasLimit) internal pure {
+        if (gasLimit < 21000 || gasLimit > 5000000) revert InvalidAmount();
+    }
+    
+    function validateBatchSize(uint256 size) internal pure {
+        if (size > 100) revert InvalidAmount();
+    }
 }
