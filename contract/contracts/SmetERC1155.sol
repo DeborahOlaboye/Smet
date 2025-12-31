@@ -7,6 +7,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract SmetLoot is ERC1155, Pausable, Ownable {
     event ContractPaused(address indexed pauser, string reason);
     event ContractUnpaused(address indexed unpauser);
+    event LootMinted(address indexed to, uint256 indexed id, uint256 amount, address indexed minter);
+    event LootBurned(address indexed from, uint256 indexed id, uint256 amount, address indexed burner);
+    event URIUpdated(string newURI, address indexed updater);
     
     constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
     
@@ -22,6 +25,7 @@ contract SmetLoot is ERC1155, Pausable, Ownable {
 
     function mint(address to, uint256 id, uint256 amount) external whenNotPaused {
         _mint(to, id, amount, "");
+        emit LootMinted(to, id, amount, msg.sender);
     }
     
     function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
