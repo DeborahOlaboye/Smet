@@ -26,4 +26,14 @@ contract SmetHero is ERC721 {
         assert(totalMinted == previousTotalMinted + 1);
         assert(ownerOf(id) == to);
     }
+    
+    function transferFrom(address from, address to, uint256 tokenId) public override {
+        address previousOwner = ownerOf(tokenId);
+        
+        super.transferFrom(from, to, tokenId);
+        
+        // Formal verification: Transfer correctness
+        assert(previousOwner == from);
+        assert(ownerOf(tokenId) == to);
+    }
 }
