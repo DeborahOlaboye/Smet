@@ -89,6 +89,29 @@ contract SmetReward is
         emit Opened(msg.sender, reqId);
     }
 
+    function batchOpen(uint256 count, bool payInNative) external payable returns (uint256[] memory reqIds) {
+        require(msg.value == fee * count, "!fee");
+        require(count > 0 && count <= 10, "Invalid count");
+        
+        reqIds = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: uint256(subId),
+                requestConfirmations: requestConfirmations,
+                callbackGasLimit: callbackGasLimit,
+                numWords: numWords,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
+                )
+            });
+            
+            reqIds[i] = s_vrfCoordinator.requestRandomWords(r);
+            waiting[reqIds[i]] = msg.sender;
+            emit Opened(msg.sender, reqIds[i]);
+        }
+    }
+
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
         address opener = waiting[reqId];
         require(opener != address(0), "no opener");
