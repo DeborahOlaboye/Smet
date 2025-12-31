@@ -204,6 +204,29 @@ contract SmetRewardTest is Test {
         w3[0] = 99;
         box.setPoolWeights(1, w3);
         assertEq(box.prizePoolLength(1), 1);
+
+        // Emitted update event when changing weights
+        vm.expectEmit(true, false, false, false);
+        emit PoolUpdated(1);
+        box.setPoolWeights(1, w3);
+    }
+
+    function test_setPoolWeights_len_mismatch_reverts() external {
+        Reward[] memory p2 = new Reward[](2);
+        p2[0] = Reward(1, address(gold), 100 ether, 0);
+        p2[1] = Reward(1, address(gold), 200 ether, 0);
+
+        uint32[] memory w2 = new uint32[](2);
+        w2[0] = 10; w2[1] = 20;
+
+        uint256 pid = box.addPool(0, w2, p2);
+        assertEq(pid, 1);
+
+        uint32[] memory bad = new uint32[](1);
+        bad[0] = 5;
+
+        vm.expectRevert(bytes("len mismatch"));
+        box.setPoolWeights(1, bad);
     }
 
     function test_open_wrong_fee_reverts() external {

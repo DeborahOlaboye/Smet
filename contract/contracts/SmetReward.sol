@@ -105,10 +105,11 @@ contract SmetReward is
     event RewardOut(address indexed opener, Reward reward);
 
     /**
-     * @notice Emitted when a new pool is created.
-     */
+    /** @notice Emitted when a new pool is created. */
     event PoolCreated(uint256 indexed poolId, uint256 fee);
 
+    /** @notice Emitted when a pool's configuration changes. */
+    event PoolUpdated(uint256 indexed poolId);
     /** @notice Maps VRF request ids to the address that opened the box. */
     mapping(uint256 => address) private waiting;
     /** @notice Maps VRF request ids to the pool id that was opened. */
@@ -284,6 +285,7 @@ contract SmetReward is
     function setPoolWeights(uint256 pid, uint32[] memory _weights) external {
         require(msg.sender == admin, "not admin");
         require(pid < poolCount, "pid oob");
+        require(_weights.length == prizePoolPerPool[pid].length, "len mismatch");
         delete cdfPerPool[pid];
         uint256 acc = 0;
         for (uint256 i = 0; i < _weights.length; ) {
@@ -291,6 +293,7 @@ contract SmetReward is
             cdfPerPool[pid].push(uint32(acc));
             unchecked { i++; }
         }
+        emit PoolUpdated(pid);
     }
 
     /**
@@ -398,6 +401,14 @@ contract SmetReward is
         // Clean up the mappings to free storage and prevent re-use
         delete waiting[reqId];
         delete waitingPool[reqId];
+    }
+
+    /**
+     * @notice Helper to inspect which pool was associated with a request id (for testing/observability).
+     */
+    function waitingPoolOf(uint256 reqId) external view returns (uint256) {
+        return waitingPool[reqId];
+    }
     }
 
     /**
