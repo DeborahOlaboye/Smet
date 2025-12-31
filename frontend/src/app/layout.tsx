@@ -66,6 +66,7 @@ function MobileHeader() {
             <nav className="flex items-center gap-4">
               <a href="/" className="text-sm text-gray-600 hover:text-gray-900">Home</a>
               <a href="/transactions" className="text-sm text-gray-600 hover:text-gray-900">Transactions</a>
+              <a href="/analytics" className="text-sm text-gray-600 hover:text-gray-900">Analytics</a>
             </nav>
             <WalletConnectButton />
           </div>
@@ -87,6 +88,7 @@ function MobileHeader() {
               <nav className="space-y-2">
                 <a href="/" className="block text-sm text-gray-600 hover:text-gray-900">Home</a>
                 <a href="/transactions" className="block text-sm text-gray-600 hover:text-gray-900">Transactions</a>
+                <a href="/analytics" className="block text-sm text-gray-600 hover:text-gray-900">Analytics</a>
               </nav>
               <div className="pt-2 border-t">
                 <WalletConnectButton />
