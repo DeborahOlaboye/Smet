@@ -135,6 +135,8 @@ contract SmetReward is
         } else {
             revert("invalid assetType");
         }
+        
+        emit RewardDistributed(to, rw.assetType, rw.token, rw.idOrAmount);
     }
 
     function refill(IERC20 token, uint256 amount) external whenNotPaused {
