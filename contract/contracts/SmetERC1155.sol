@@ -6,8 +6,28 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SmetLoot is ERC1155, Pausable, Ownable {
     constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 
-    function mint(address to, uint256 id, uint256 amount) external {
+    function mint(address to, uint256 id, uint256 amount) external whenNotPaused {
         _mint(to, id, amount, "");
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
+        super.safeTransferFrom(from, to, id, amount, data);
+    }
+    
+    function safeBatchTransferFrom(address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public override whenNotPaused {
+        super.safeBatchTransferFrom(from, to, ids, amounts, data);
+    }
+    
+    function setApprovalForAll(address operator, bool approved) public override whenNotPaused {
+        super.setApprovalForAll(operator, approved);
     }
 }
