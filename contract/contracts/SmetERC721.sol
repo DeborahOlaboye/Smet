@@ -27,6 +27,7 @@ contract SmetHero is ERC721, Pausable, Ownable {
 
     function mint(address to) external whenNotPaused returns (uint256 id) {
         id = nextId++;
+        totalMinted++;
         _safeMint(to, id);
         emit HeroMinted(to, id, msg.sender);
     }
