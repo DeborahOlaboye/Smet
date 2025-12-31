@@ -10,6 +10,7 @@ contract SmetLoot is ERC1155, Pausable, Ownable {
     event LootMinted(address indexed to, uint256 indexed id, uint256 amount, address indexed minter);
     event LootBurned(address indexed from, uint256 indexed id, uint256 amount, address indexed burner);
     event URIUpdated(string newURI, address indexed updater);
+    event BatchLootMinted(address indexed to, uint256[] ids, uint256[] amounts, address indexed minter);
     
     constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
     
@@ -37,6 +38,11 @@ contract SmetLoot is ERC1155, Pausable, Ownable {
     function setURI(string memory newURI) external onlyOwner {
         _setURI(newURI);
         emit URIUpdated(newURI, msg.sender);
+    }
+    
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts) external whenNotPaused {
+        _mintBatch(to, ids, amounts, "");
+        emit BatchLootMinted(to, ids, amounts, msg.sender);
     }
     
     function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
