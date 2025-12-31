@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import "./SmetTiers.sol";
 
 /**
  * @dev Reward descriptor used in the prize pool.
@@ -55,6 +56,12 @@ contract SmetReward is
     /** @notice Prize pool array where each element describes a reward. */
     Reward[] public prizePool;
 
+    /** @notice Optional tiers contract used to compute user tiers. */
+    address public tiersContract;
+
+    /** @notice Admin address (deployer) with permission to configure optional modules. */
+    address public immutable admin;
+
     /** @notice Maps VRF request ids to the address that opened the box. */
     mapping(uint256 => address) private waiting;
 
@@ -95,6 +102,7 @@ contract SmetReward is
         subId = _subId;
         keyHash = _keyHash;
         fee = _fee;
+        admin = msg.sender;
 
         // Build cumulative distribution function (CDF) from weights.
         // Example: weights [10, 30, 60] -> cdf [10, 40, 100]
@@ -150,6 +158,23 @@ contract SmetReward is
 
         waiting[reqId] = msg.sender;
         emit Opened(msg.sender, reqId);
+    }
+
+    /**
+     * @notice Set the tiers contract used to compute user tiers for optional
+     * integrations. Only callable by the deployer (admin).
+     */
+    function setTiersContract(address _t) external {
+        require(msg.sender == admin, "not admin");
+        tiersContract = _t;
+    }
+
+    /**
+     * @notice Helper to query the numeric tier id for a user (0 = None).
+     */
+    function getTierOf(address user) external view returns (uint8) {
+        if (tiersContract == address(0)) return 0;
+        return SmetTiers(tiersContract).getTierId(user);
     }
 
     /**
