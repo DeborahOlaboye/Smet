@@ -242,6 +242,22 @@ contract SmetRewardTest is Test {
         assertEq(cnt, 1);
     }
 
+    function test_open_emits_opened_with_poolId() external {
+        Reward[] memory p2 = new Reward[](1);
+        p2[0] = Reward(1, address(gold), 1 ether, 0);
+        uint32[] memory w2 = new uint32[](1);
+        w2[0] = 100;
+
+        uint256 pid = box.addPool(0.03 ether, w2, p2);
+        assertEq(pid, 1);
+
+        vm.expectEmit(true, false, false, false);
+        emit Opened(alice, 0, 1);
+
+        vm.prank(alice);
+        box.open{value: 0.03 ether}(true, 1);
+    }
+
     function test_open_wrong_fee_reverts() external {
         // Make sure opening a specific pool requires the configured fee
         Reward[] memory p2 = new Reward[](1);
