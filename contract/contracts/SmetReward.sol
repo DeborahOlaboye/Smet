@@ -40,6 +40,8 @@ contract SmetReward is
 
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
+    event ContractPaused(address indexed pauser, string reason);
+    event ContractUnpaused(address indexed unpauser);
 
     constructor(
         address _coordinator,
@@ -73,10 +75,12 @@ contract SmetReward is
     
     function pause() external onlyOwner {
         _pause();
+        emit ContractPaused(msg.sender, "Manual pause");
     }
     
     function unpause() external onlyOwner {
         _unpause();
+        emit ContractUnpaused(msg.sender);
     }
 
     function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
