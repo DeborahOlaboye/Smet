@@ -46,6 +46,7 @@ contract SmetReward is
     event PrizePoolUpdated(uint256 indexed prizeIndex, uint8 assetType, address indexed token, uint256 idOrAmount);
     event FeeUpdated(uint256 oldFee, uint256 newFee, address indexed updater);
     event TokenRefilled(address indexed token, uint256 amount, address indexed refiller);
+    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords, address indexed updater);
 
     constructor(
         address _coordinator,
@@ -150,6 +151,13 @@ contract SmetReward is
         uint256 oldFee = fee;
         fee = newFee;
         emit FeeUpdated(oldFee, newFee, msg.sender);
+    }
+    
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyOwner {
+        requestConfirmations = _requestConfirmations;
+        callbackGasLimit = _callbackGasLimit;
+        numWords = _numWords;
+        emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords, msg.sender);
     }
 
     receive() external payable {}
