@@ -45,6 +45,10 @@ Smet provides a frontend experience for connecting wallets and opening rewards v
 - Reward tiers: The system now supports optional reward tiers via a `SmetTiers` contract which can be configured on `SmetReward`. Clients can call `getTierOf(address)` to read a user's tier (0 = None, 1 = Bronze, 2 = Silver, 3 = Gold, 4 = Platinum).
 - SmetHero, SmetLoot, SmetGold: see `README.md` or `contract/ignition/deployments/sepolia-deployment/deployed_addresses.json`
 
+Admin features:
+- Admins can set a global cooldown (seconds) via `setCooldownSeconds(uint256)` to limit how frequently a user can call `open()` and help prevent reward farming.
+- Admins can also schedule when individual prizes become available using `setPrizeAvailableAfter(uint256 idx, uint64 availableAfter)`.
+
 ---
 
 ## Interacting with contracts directly (advanced users)
