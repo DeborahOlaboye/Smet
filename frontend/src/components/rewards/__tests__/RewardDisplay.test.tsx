@@ -45,4 +45,12 @@ describe('RewardDisplay', () => {
     await waitFor(() => expect(onClaim).toHaveBeenCalled())
     await waitFor(() => expect(mockHandlers.handleError).toHaveBeenCalled())
   })
+
+  test('shows locked badge when reward availableAfter is in future', () => {
+    const onClaim = vi.fn()
+    const future = Math.floor(Date.now()/1000) + 3600
+    render(<RewardDisplay reward={{ ...baseReward, availableAfter: future }} onClaim={onClaim} />)
+
+    expect(screen.getByText(/locked/i)).toBeInTheDocument()
+  })
 })
