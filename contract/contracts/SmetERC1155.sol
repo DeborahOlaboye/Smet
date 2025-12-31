@@ -5,14 +5,19 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SmetLoot is ERC1155, Pausable, Ownable {
+    event ContractPaused(address indexed pauser, string reason);
+    event ContractUnpaused(address indexed unpauser);
+    
     constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
     
     function pause() external onlyOwner {
         _pause();
+        emit ContractPaused(msg.sender, "Manual pause");
     }
     
     function unpause() external onlyOwner {
         _unpause();
+        emit ContractUnpaused(msg.sender);
     }
 
     function mint(address to, uint256 id, uint256 amount) external whenNotPaused {
