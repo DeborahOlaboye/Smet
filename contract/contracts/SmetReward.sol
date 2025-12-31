@@ -42,6 +42,9 @@ contract SmetReward is
     event RewardOut(address indexed opener, Reward reward);
     event ContractPaused(address indexed pauser, string reason);
     event ContractUnpaused(address indexed unpauser);
+    event RewardDistributed(address indexed recipient, uint8 assetType, address indexed token, uint256 idOrAmount);
+    event PrizePoolUpdated(uint256 indexed prizeIndex, uint8 assetType, address indexed token, uint256 idOrAmount);
+    event FeeUpdated(uint256 oldFee, uint256 newFee, address indexed updater);
 
     constructor(
         address _coordinator,
