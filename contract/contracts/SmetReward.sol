@@ -120,7 +120,7 @@ contract SmetReward is
         }
     }
 
-    function refill(IERC20 token, uint256 amount) external {
+    function refill(IERC20 token, uint256 amount) external nonReentrant {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
     }
