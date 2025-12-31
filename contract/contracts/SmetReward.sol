@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import "./CircuitBreaker.sol";
 
 struct Reward {
     uint8 assetType;
@@ -18,7 +19,8 @@ struct Reward {
 contract SmetReward is 
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
-    IERC1155Receiver 
+    IERC1155Receiver,
+    CircuitBreaker 
 {
     address public immutable VRF_COORD;
     bytes32 public immutable keyHash;
@@ -67,7 +69,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable returns (uint256 reqId) {
+    function open(bool payInNative) external payable circuitBreakerCheck(this.open.selector) returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
@@ -118,7 +120,7 @@ contract SmetReward is
         }
     }
 
-    function refill(IERC20 token, uint256 amount) external {
+    function refill(IERC20 token, uint256 amount) external circuitBreakerCheck(this.refill.selector) {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
     }
