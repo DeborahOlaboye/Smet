@@ -161,6 +161,12 @@ contract SmetReward is
     function unpause() external onlyOwner {
         _unpause();
     }
+    
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyOwner nonReentrant {
+        requestConfirmations = _requestConfirmations;
+        callbackGasLimit = _callbackGasLimit;
+        numWords = _numWords;
+    }
 
     receive() external payable nonReentrant {}
 
