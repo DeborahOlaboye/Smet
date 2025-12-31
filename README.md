@@ -16,6 +16,12 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 - **CircuitBreaker** - Automated circuit breaker for emergency operation controls
 - All contracts include pause/unpause functionality and emergency withdrawal capabilities
 
+### Upgradeability
+- **UUPS Proxy Pattern** - All contracts are upgradeable using OpenZeppelin's UUPS standard
+- **Governance Integration** - Upgrade proposals managed through governance system
+- **State Preservation** - Contract addresses and state maintained across upgrades
+- See [Upgradeability Documentation](./UPGRADEABILITY_DOCUMENTATION.md)
+
 ### How It Works
 1. Players pay a fee to open reward boxes through `SmetReward.open()`
 2. Chainlink VRF generates verifiable random numbers for fair prize selection
@@ -33,20 +39,22 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 - [Emergency Recovery Plan](./EMERGENCY_RECOVERY_PLAN.md)
 - [Quick Reference Guide](./EMERGENCY_QUICK_REFERENCE.md)
 
+🔄 **Upgradeability**: Future-proof contract system
+- UUPS proxy pattern for seamless upgrades
+- Governance-controlled upgrade process
+- State and address preservation
+
 ## Deployed Addresses
 
+### Current Contracts
 - **SmetGold** - `0x0A8862B2d93105b6BD63ee2c9343E7966872a3D2`
 - **SmetHero** - `0x877D1FDa6a6b668b79ca4A42388E0825667d233E`
 - **SmetLoot** - `0xa5046538c6338DC8b52a22675338a4623D4B5475`
 - **SmetReward** - `0xeF85822c30D194c2B2F7cC17223C64292Bfe611b`
 
-## Frontend
+### Upgradeable Versions
+*Deploy using:* `npx hardhat run scripts/deploy-upgradeable.ts --network <network>`
 
-The frontend supports multiple wallet providers via `wagmi` connectors (e.g., MetaMask, WalletConnect). The header `Connect Wallet` button opens a picker to choose a provider.
-
-## Developer onboarding
-
-New contributors should follow the step-by-step guide in `docs/DEVELOPER_ONBOARDING.md` to get set up and productive quickly.
 ## Verification
 
 [View SmetLoot on Etherscan](https://sepolia-blockscout.lisk.com/address/0xa5046538c6338DC8b52a22675338a4623D4B5475)
