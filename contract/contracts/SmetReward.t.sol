@@ -141,6 +141,11 @@ contract SmetRewardTest is Test {
         vm.prank(alice);
         vm.expectRevert(bytes("not admin"));
         box.setCooldownSeconds(0);
+
+        // Prize availability setter is admin-only as well
+        vm.prank(alice);
+        vm.expectRevert(bytes("not admin"));
+        box.setPrizeAvailableAfter(0, uint64(block.timestamp));
     }
 
     function test_isPrizeAvailable_view() external {
