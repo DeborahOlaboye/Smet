@@ -5,11 +5,20 @@ import Image from 'next/image';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/button';
+import { useTier } from '@/lib/web3/useTier';
 
 interface RewardCardProps {
   reward: Reward;
   onOpen?: (rewardId: string) => void;
   isLoading?: boolean;
+}
+
+function TierBadge() {
+  const { tier, isLoading } = useTier();
+  if (isLoading) return <span>…</span>;
+  const names = ['None', 'Bronze', 'Silver', 'Gold', 'Platinum'];
+  if (!tier || tier < 1 || tier > 4) return <span className="text-xs text-muted">None</span>;
+  return <span className="text-xs font-medium text-amber-600">{names[tier]}</span>;
 }
 
 export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProps) {
@@ -33,9 +42,13 @@ export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProp
           />
         )}
 
-        <div className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-white/90 backdrop-blur-sm">
+        <div className="absolute top-2 right-2 px-2 py-1 text-xs font-medium rounded-full bg-white/90 backdrop-blur-sm flex items-center gap-2">
           <span className={rewardType.color}>
             {rewardType.name}
+          </span>
+          <span className="text-[10px] text-muted">
+            {/* Show tier if connected */}
+            <TierBadge />
           </span>
         </div>
       </div>
