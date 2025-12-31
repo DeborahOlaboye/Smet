@@ -81,6 +81,7 @@ contract SmetReward is
     }
 
     function open(bool payInNative) external payable returns (uint256 reqId) {
+        InputValidator.validateAmount(msg.value);
         require(msg.value == fee, "!fee");
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
