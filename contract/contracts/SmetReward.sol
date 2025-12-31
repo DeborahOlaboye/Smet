@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-import "./SmetTiers.sol";
+import "./InputValidator.sol";
 
 /**
  * @dev Reward descriptor used in the prize pool.
@@ -130,7 +130,19 @@ contract SmetReward is
         uint32[] memory _weights,
         Reward[] memory _prizes
     ) VRFConsumerBaseV2Plus(_coordinator) {
-        require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
+        InputValidator.validateAddress(_coordinator);
+        InputValidator.validateAmount(_fee);
+        InputValidator.validateArrayLength(_weights.length);
+        InputValidator.validateArrayLength(_prizes.length);
+        InputValidator.validateArrayLengths(_weights.length, _prizes.length);
+        
+        for (uint i = 0; i < _prizes.length; i++) {
+            InputValidator.validateAddress(_prizes[i].token);
+            InputValidator.validateAssetType(_prizes[i].assetType);
+            if (_prizes[i].assetType == 1) {
+                InputValidator.validateAmount(_prizes[i].idOrAmount);
+            }
+        }
         VRF_COORD = _coordinator;
         subId = _subId;
         keyHash = _keyHash;
@@ -195,6 +207,7 @@ contract SmetReward is
     }
 
     function open(bool payInNative) external payable returns (uint256 reqId) {
+        InputValidator.validateAmount(msg.value);
         require(msg.value == fee, "!fee");
         
         // Formal verification: Pre-conditions
@@ -315,6 +328,8 @@ contract SmetReward is
      * @param amount Amount of tokens to transfer into the contract.
      */
     function refill(IERC20 token, uint256 amount) external {
+        InputValidator.validateAddress(address(token));
+        InputValidator.validateAmount(amount);
         require(amount > 0, "!amount");
         
         // Formal verification: Pre-conditions
@@ -336,6 +351,44 @@ contract SmetReward is
             tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
         }
         emit BatchOperationCompleted(msg.sender, "batchRefill", tokens.length);
+    }
+    
+    function batchOpen(uint256 count, bool payInNative) external payable returns (uint256[] memory reqIds) {
+        InputValidator.validateAmount(count);
+        require(count <= 10, "Max 10 opens");
+        InputValidator.validateAmount(msg.value);
+        require(msg.value == fee * count, "!fee");
+        
+        reqIds = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: uint256(subId),
+                requestConfirmations: requestConfirmations,
+                callbackGasLimit: callbackGasLimit,
+                numWords: numWords,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
+                )
+            });
+            
+            reqIds[i] = s_vrfCoordinator.requestRandomWords(r);
+            waiting[reqIds[i]] = msg.sender;
+            emit Opened(msg.sender, reqIds[i]);
+        }
+    }
+    
+    function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
+        InputValidator.validateArrayLength(tokens.length);
+        InputValidator.validateBatchSize(tokens.length);
+        InputValidator.validateArrayLengths(tokens.length, amounts.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            InputValidator.validateAddress(address(tokens[i]));
+            InputValidator.validateAmount(amounts[i]);
+        }
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
+        }
     }
 
     receive() external payable {}

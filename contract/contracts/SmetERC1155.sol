@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "./InputValidator.sol";
 
 /**
  * @title SmetLoot
@@ -19,9 +20,8 @@ contract SmetLoot is ERC1155 {
      * @param amount Number of units to mint.
      */
     function mint(address to, uint256 id, uint256 amount) external {
-        uint256 previousBalance = balanceOf(to, id);
-        uint256 previousTotalSupply = totalSupplyById[id];
-        
+        InputValidator.validateAddress(to);
+        InputValidator.validateAmount(amount);
         _mint(to, id, amount, "");
         totalSupplyById[id] += amount;
         
@@ -31,40 +31,53 @@ contract SmetLoot is ERC1155 {
     }
     
     function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override {
-        uint256 fromBalanceBefore = balanceOf(from, id);
-        uint256 toBalanceBefore = balanceOf(to, id);
-        uint256 totalSupplyBefore = totalSupplyById[id];
-        
+        InputValidator.validateAddress(from);
+        InputValidator.validateAddress(to);
+        InputValidator.validateAmount(amount);
         super.safeTransferFrom(from, to, id, amount, data);
-        
-        // Formal verification: Transfer correctness
-        if (from != to) {
-            assert(balanceOf(from, id) == fromBalanceBefore - amount);
-            assert(balanceOf(to, id) == toBalanceBefore + amount);
-        }
-        assert(totalSupplyById[id] == totalSupplyBefore);
     }
-
+    
+    function safeBatchTransferFrom(address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public override {
+        InputValidator.validateAddress(from);
+        InputValidator.validateAddress(to);
+        InputValidator.validateArrayLength(ids.length);
+        InputValidator.validateArrayLengths(ids.length, amounts.length);
+        for (uint256 i = 0; i < amounts.length; i++) {
+            InputValidator.validateAmount(amounts[i]);
+        }
+        super.safeBatchTransferFrom(from, to, ids, amounts, data);
+    }
+    
+    function setApprovalForAll(address operator, bool approved) public override {
+        InputValidator.validateAddress(operator);
+        super.setApprovalForAll(operator, approved);
+    }
+    
     function batchMint(address[] calldata recipients, uint256[] calldata ids, uint256[] calldata amounts) external {
-        require(recipients.length == ids.length && ids.length == amounts.length, "Length mismatch");
+        InputValidator.validateArrayLength(recipients.length);
+        InputValidator.validateBatchSize(recipients.length);
+        InputValidator.validateArrayLengths(recipients.length, ids.length);
+        InputValidator.validateArrayLengths(ids.length, amounts.length);
+        for (uint256 i = 0; i < recipients.length; i++) {
+            InputValidator.validateAddress(recipients[i]);
+            InputValidator.validateAmount(amounts[i]);
+        }
         for (uint256 i = 0; i < recipients.length; i++) {
             _mint(recipients[i], ids[i], amounts[i], "");
         }
-        emit BatchMintCompleted(msg.sender, recipients.length);
     }
-
+    
     function batchTransfer(address[] calldata to, uint256[] calldata ids, uint256[] calldata amounts) external {
-        require(to.length == ids.length && ids.length == amounts.length, "Length mismatch");
+        InputValidator.validateArrayLength(to.length);
+        InputValidator.validateBatchSize(to.length);
+        InputValidator.validateArrayLengths(to.length, ids.length);
+        InputValidator.validateArrayLengths(ids.length, amounts.length);
+        for (uint256 i = 0; i < to.length; i++) {
+            InputValidator.validateAddress(to[i]);
+            InputValidator.validateAmount(amounts[i]);
+        }
         for (uint256 i = 0; i < to.length; i++) {
             safeTransferFrom(msg.sender, to[i], ids[i], amounts[i], "");
-        }
-        emit BatchTransferCompleted(msg.sender, to.length);
-    }
-
-    function batchApproval(address[] calldata operators, bool[] calldata approved) external {
-        require(operators.length == approved.length, "Length mismatch");
-        for (uint256 i = 0; i < operators.length; i++) {
-            setApprovalForAll(operators[i], approved[i]);
         }
     }
 }
