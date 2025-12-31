@@ -101,4 +101,17 @@ contract SmetTiersTest is Test {
         vm.expectRevert("invalid thresholds");
         tiers.setThresholds(1000, 10, 100, 10000);
     }
+
+    function test_tiersWithoutStakingContract() public {
+        SmetTiers t = new SmetTiers(1, 2, 3, 4);
+        // no staking contract set -> all users should be None
+        uint8 a = t.getTierId(alice);
+        assertEq(a, uint8(SmetTiers.Tier.None));
+    }
+
+    function test_setThresholdsEmits() public {
+        vm.expectEmit(true, false, false, false);
+        emit StakingContractUpdated(address(stake));
+        tiers.setStakingContract(stake);
+    }
 }
