@@ -47,6 +47,7 @@ contract SmetReward is
     event FeeUpdated(uint256 oldFee, uint256 newFee, address indexed updater);
     event TokenRefilled(address indexed token, uint256 amount, address indexed refiller);
     event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords, address indexed updater);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
 
     constructor(
         address _coordinator,
@@ -158,6 +159,12 @@ contract SmetReward is
         callbackGasLimit = _callbackGasLimit;
         numWords = _numWords;
         emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
     }
 
     receive() external payable {}
