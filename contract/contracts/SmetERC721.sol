@@ -39,6 +39,7 @@ contract SmetHero is ERC721 {
     
     function batchMint(address[] calldata recipients) external returns (uint256[] memory ids) {
         InputValidator.validateArrayLength(recipients.length);
+        InputValidator.validateBatchSize(recipients.length);
         for (uint256 i = 0; i < recipients.length; i++) {
             InputValidator.validateAddress(recipients[i]);
         }
@@ -51,6 +52,7 @@ contract SmetHero is ERC721 {
     
     function batchTransfer(address[] calldata to, uint256[] calldata tokenIds) external {
         InputValidator.validateArrayLength(to.length);
+        InputValidator.validateBatchSize(to.length);
         InputValidator.validateArrayLengths(to.length, tokenIds.length);
         for (uint256 i = 0; i < to.length; i++) {
             InputValidator.validateAddress(to[i]);
