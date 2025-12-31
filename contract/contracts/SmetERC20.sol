@@ -6,6 +6,17 @@ import "./CircuitBreaker.sol";
 contract SmetGold is ERC20, CircuitBreaker {
     constructor() ERC20("SmetGold", "SGOLD") {
         _mint(msg.sender, 10000000 ether);
+        emit TokensMinted(msg.sender, 10000000 ether, msg.sender);
+    }
+    
+    function setTimelock(address _timelock) external onlyOwner {
+        timelock = _timelock;
+        emit TimelockSet(_timelock);
+    }
+    
+    function mint(address to, uint256 amount) external onlyTimelock {
+        _mint(to, amount);
+        emit TokensMinted(to, amount);
     }
 
     function transfer(address to, uint256 value) public override circuitBreakerCheck(this.transfer.selector) returns (bool) {
