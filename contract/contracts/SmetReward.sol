@@ -8,7 +8,8 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-import "./InputValidator.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @dev Reward descriptor used in the prize pool.
@@ -34,7 +35,9 @@ struct Reward {
 contract SmetReward is 
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
-    IERC1155Receiver 
+    IERC1155Receiver,
+    Pausable,
+    Ownable
 {
     /** @notice Chainlink VRF coordinator address. */
     address public immutable VRF_COORD;
@@ -105,12 +108,15 @@ contract SmetReward is
      * @param reward The Reward struct representing the delivered asset.
      */
     event RewardOut(address indexed opener, Reward reward);
-    event BatchRewardsClaimed(address indexed claimer, uint256 count);
-    event BatchOperationCompleted(address indexed user, string operation, uint256 count);
-
-    /**
-    /** @notice Emitted when a new pool is created. */
-    event PoolCreated(uint256 indexed poolId, uint256 fee);
+    event ContractPaused(address indexed pauser, string reason);
+    event ContractUnpaused(address indexed unpauser);
+    event RewardDistributed(address indexed recipient, uint8 assetType, address indexed token, uint256 idOrAmount);
+    event PrizePoolUpdated(uint256 indexed prizeIndex, uint8 assetType, address indexed token, uint256 idOrAmount);
+    event FeeUpdated(uint256 oldFee, uint256 newFee, address indexed updater);
+    event TokenRefilled(address indexed token, uint256 amount, address indexed refiller);
+    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords, address indexed updater);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
+    event EmergencyWithdrawal(address indexed token, uint256 amount, address indexed recipient, address indexed executor);
 
     /** @notice Emitted when a pool's configuration changes. */
     event PoolUpdated(uint256 indexed poolId);
@@ -129,20 +135,8 @@ contract SmetReward is
         uint256 _cooldownSeconds,
         uint32[] memory _weights,
         Reward[] memory _prizes
-    ) VRFConsumerBaseV2Plus(_coordinator) {
-        InputValidator.validateAddress(_coordinator);
-        InputValidator.validateAmount(_fee);
-        InputValidator.validateArrayLength(_weights.length);
-        InputValidator.validateArrayLength(_prizes.length);
-        InputValidator.validateArrayLengths(_weights.length, _prizes.length);
-        
-        for (uint i = 0; i < _prizes.length; i++) {
-            InputValidator.validateAddress(_prizes[i].token);
-            InputValidator.validateAssetType(_prizes[i].assetType);
-            if (_prizes[i].assetType == 1) {
-                InputValidator.validateAmount(_prizes[i].idOrAmount);
-            }
-        }
+    ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
+        require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         VRF_COORD = _coordinator;
         subId = _subId;
         keyHash = _keyHash;
@@ -205,9 +199,18 @@ contract SmetReward is
         assert(fee == _fee);
         assert(totalRewardsDistributed == 0);
     }
+    
+    function pause() external onlyOwner {
+        _pause();
+        emit ContractPaused(msg.sender, "Manual pause");
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+        emit ContractUnpaused(msg.sender);
+    }
 
-    function open(bool payInNative) external payable returns (uint256 reqId) {
-        InputValidator.validateAmount(msg.value);
+    function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
         
         // Formal verification: Pre-conditions
@@ -319,17 +322,11 @@ contract SmetReward is
         } else {
             revert("invalid assetType");
         }
+        
+        emit RewardDistributed(to, rw.assetType, rw.token, rw.idOrAmount);
     }
 
-    /**
-     * @notice Refill the contract with ERC20 tokens to fund ERC20 prizes.
-     * @dev Caller must `approve` this contract to spend `amount` of `token` beforehand.
-     * @param token The ERC20 token to transfer in.
-     * @param amount Amount of tokens to transfer into the contract.
-     */
-    function refill(IERC20 token, uint256 amount) external {
-        InputValidator.validateAddress(address(token));
-        InputValidator.validateAmount(amount);
+    function refill(IERC20 token, uint256 amount) external whenNotPaused {
         require(amount > 0, "!amount");
         
         // Formal verification: Pre-conditions
@@ -339,56 +336,35 @@ contract SmetReward is
         uint256 contractBalanceBefore = token.balanceOf(address(this));
         
         token.transferFrom(msg.sender, address(this), amount);
-        
-        // Formal verification: Post-conditions
-        assert(token.balanceOf(address(this)) == contractBalanceBefore + amount);
-    }
-
-    function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
-        require(tokens.length == amounts.length, "Length mismatch");
-        for (uint256 i = 0; i < tokens.length; i++) {
-            require(amounts[i] > 0, "!amount");
-            tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
-        }
-        emit BatchOperationCompleted(msg.sender, "batchRefill", tokens.length);
+        emit TokenRefilled(address(token), amount, msg.sender);
     }
     
-    function batchOpen(uint256 count, bool payInNative) external payable returns (uint256[] memory reqIds) {
-        InputValidator.validateAmount(count);
-        require(count <= 10, "Max 10 opens");
-        InputValidator.validateAmount(msg.value);
-        require(msg.value == fee * count, "!fee");
-        
-        reqIds = new uint256[](count);
-        for (uint256 i = 0; i < count; i++) {
-            VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
-                keyHash: keyHash,
-                subId: uint256(subId),
-                requestConfirmations: requestConfirmations,
-                callbackGasLimit: callbackGasLimit,
-                numWords: numWords,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
-                )
-            });
-            
-            reqIds[i] = s_vrfCoordinator.requestRandomWords(r);
-            waiting[reqIds[i]] = msg.sender;
-            emit Opened(msg.sender, reqIds[i]);
-        }
+    function updateFee(uint256 newFee) external onlyOwner {
+        uint256 oldFee = fee;
+        fee = newFee;
+        emit FeeUpdated(oldFee, newFee, msg.sender);
     }
     
-    function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
-        InputValidator.validateArrayLength(tokens.length);
-        InputValidator.validateBatchSize(tokens.length);
-        InputValidator.validateArrayLengths(tokens.length, amounts.length);
-        for (uint256 i = 0; i < tokens.length; i++) {
-            InputValidator.validateAddress(address(tokens[i]));
-            InputValidator.validateAmount(amounts[i]);
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyOwner {
+        requestConfirmations = _requestConfirmations;
+        callbackGasLimit = _callbackGasLimit;
+        numWords = _numWords;
+        emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
+    }
+    
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+        if (token == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            IERC20(token).transfer(msg.sender, amount);
         }
-        for (uint256 i = 0; i < tokens.length; i++) {
-            tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
-        }
+        emit EmergencyWithdrawal(token, amount, msg.sender, msg.sender);
     }
 
     receive() external payable {}

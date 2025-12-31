@@ -1,33 +1,67 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "./InputValidator.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-/**
- * @title SmetLoot
- * @notice ERC1155 contract for multi-token loot items used by the rewards system.
- * @dev Clients can resolve `{id}` in the URI template to fetch per-item metadata.
- */
-contract SmetLoot is ERC1155 {
-    mapping(uint256 => uint256) private totalSupplyById;
+contract SmetLoot is ERC1155, Pausable, Ownable {
+    event ContractPaused(address indexed pauser, string reason);
+    event ContractUnpaused(address indexed unpauser);
+    event LootMinted(address indexed to, uint256 indexed id, uint256 amount, address indexed minter);
+    event LootBurned(address indexed from, uint256 indexed id, uint256 amount, address indexed burner);
+    event URIUpdated(string newURI, address indexed updater);
+    event BatchLootMinted(address indexed to, uint256[] ids, uint256[] amounts, address indexed minter);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
     
-    constructor() ERC1155("https://loot.example/{id}.json") {}
+    constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
+    
+    function pause() external onlyOwner {
+        _pause();
+        emit ContractPaused(msg.sender, "Manual pause");
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+        emit ContractUnpaused(msg.sender);
+    }
 
-    /**
-     * @notice Mint `amount` units of token `id` to address `to`.
-     * @param to Recipient of the minted tokens.
-     * @param id Token id to mint.
-     * @param amount Number of units to mint.
-     */
-    function mint(address to, uint256 id, uint256 amount) external {
-        InputValidator.validateAddress(to);
-        InputValidator.validateAmount(amount);
+    function mint(address to, uint256 id, uint256 amount) external whenNotPaused {
         _mint(to, id, amount, "");
-        totalSupplyById[id] += amount;
-        
-        // Formal verification: Mint correctness
-        assert(balanceOf(to, id) == previousBalance + amount);
-        assert(totalSupplyById[id] == previousTotalSupply + amount);
+        emit LootMinted(to, id, amount, msg.sender);
+    }
+    
+    function burn(address from, uint256 id, uint256 amount) external whenNotPaused {
+        require(from == msg.sender || isApprovedForAll(from, msg.sender), "Not approved");
+        _burn(from, id, amount);
+        emit LootBurned(from, id, amount, msg.sender);
+    }
+    
+    function setURI(string memory newURI) external onlyOwner {
+        _setURI(newURI);
+        emit URIUpdated(newURI, msg.sender);
+    }
+    
+    function mintBatch(address to, uint256[] memory ids, uint256[] memory amounts) external whenNotPaused {
+        _mintBatch(to, ids, amounts, "");
+        emit BatchLootMinted(to, ids, amounts, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
+        super.safeTransferFrom(from, to, id, amount, data);
+    }
+    
+    function safeBatchTransferFrom(address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public override whenNotPaused {
+        super.safeBatchTransferFrom(from, to, ids, amounts, data);
+    }
+    
+    function setApprovalForAll(address operator, bool approved) public override whenNotPaused {
+        super.setApprovalForAll(operator, approved);
     }
     
     function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override {
