@@ -70,8 +70,16 @@ contract SmetReward is
             }));
         }
     }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 
-    function open(bool payInNative) external payable returns (uint256 reqId) {
+    function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
