@@ -16,16 +16,16 @@ describe('useSmetReward', () => {
     await expect(result.current.openReward()).rejects.toThrow('Contract write not ready');
   });
 
-  it('prepares args with paymentInNative flag', () => {
+  it('prepares args with paymentInNative and poolId', () => {
     const wagmi = require('wagmi');
     // Reset mock calls
     wagmi.usePrepareContractWrite.mockClear();
 
-    renderHook(() => useSmetReward({ paymentInNative: false }));
+    renderHook(() => useSmetReward({ paymentInNative: false, poolId: 1 }));
     expect(wagmi.usePrepareContractWrite.mock.calls.length).toBeGreaterThan(0);
 
     // Inspect the last call to ensure args were passed through
     const lastCall = wagmi.usePrepareContractWrite.mock.calls[0][0];
-    expect(lastCall.args).toEqual([false]);
+    expect(lastCall.args).toEqual([false, 1]);
   });
 });
