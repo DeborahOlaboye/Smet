@@ -11,6 +11,7 @@ contract SmetGold is ERC20, Pausable, Ownable {
     
     constructor() ERC20("SmetGold", "SGOLD") Ownable(msg.sender) {
         _mint(msg.sender, 10000000 ether);
+        emit TokensMinted(msg.sender, 10000000 ether, msg.sender);
     }
     
     function pause() external onlyOwner {
