@@ -139,6 +139,10 @@ contract SmetReward is
     }
 
     function _deliver(address to, Reward memory rw) private {
+        // Formal verification: Pre-conditions
+        assert(to != address(0));
+        assert(rw.assetType >= 1 && rw.assetType <= 3);
+        
         if (rw.assetType == 1) {
             require(IERC20(rw.token).transfer(to, rw.idOrAmount), "erc20 transfer failed");
         } else if (rw.assetType == 2) {
