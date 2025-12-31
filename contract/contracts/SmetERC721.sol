@@ -8,9 +8,33 @@ contract SmetHero is ERC721, Pausable, Ownable {
     uint256 public nextId = 1;
 
     constructor() ERC721("SmetHero", "SHERO") Ownable(msg.sender) {}
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
 
-    function mint(address to) external returns (uint256 id) {
+    function mint(address to) external whenNotPaused returns (uint256 id) {
         id = nextId++;
         _safeMint(to, id);
+    }
+    
+    function transferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        super.transferFrom(from, to, tokenId);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override whenNotPaused {
+        super.safeTransferFrom(from, to, tokenId, data);
+    }
+    
+    function approve(address to, uint256 tokenId) public override whenNotPaused {
+        super.approve(to, tokenId);
     }
 }
