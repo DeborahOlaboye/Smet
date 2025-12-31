@@ -23,6 +23,13 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 - **SmetLoot** - `0xa5046538c6338DC8b52a22675338a4623D4B5475`
 - **SmetReward** - `0xeF85822c30D194c2B2F7cC17223C64292Bfe611b`
 
+## Frontend
+
+The frontend supports multiple wallet providers via `wagmi` connectors (e.g., MetaMask, WalletConnect). The header `Connect Wallet` button opens a picker to choose a provider.
+
+## Developer onboarding
+
+New contributors should follow the step-by-step guide in `docs/DEVELOPER_ONBOARDING.md` to get set up and productive quickly.
 ## Verification
 
 [View SmetLoot on Etherscan](https://sepolia-blockscout.lisk.com/address/0xa5046538c6338DC8b52a22675338a4623D4B5475)

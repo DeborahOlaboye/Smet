@@ -8,41 +8,125 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import "./SmetTiers.sol";
 
+/**
+ * @dev Reward descriptor used in the prize pool.
+ * @param assetType Asset type: 1 = ERC20, 2 = ERC721, 3 = ERC1155.
+ * @param token Token contract address.
+ * @param idOrAmount Token id for NFTs or amount for fungible tokens.
+ * @param availableAfter Unix timestamp when this reward becomes claimable (0 = immediately).
+ */
 struct Reward {
     uint8 assetType;
     address token;
     uint256 idOrAmount;
-}
+    uint64 availableAfter;
+} 
 
+/**
+ * @title SmetReward
+ * @notice Provably-fair "loot box" reward contract using Chainlink VRF V2 Plus.
+ * @dev Uses a cumulative distribution function (CDF) built from weights for
+ * sampling. `open()` requests randomness; `fulfillRandomWords` selects and
+ * delivers a prize via `_deliver` which supports ERC20/ERC721/ERC1155.
+ */
 contract SmetReward is 
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver 
 {
+    /** @notice Chainlink VRF coordinator address. */
     address public immutable VRF_COORD;
+    /** @notice Active key hash used for VRF requests. */
     bytes32 public immutable keyHash;
+    /** @notice Chainlink subscription id used to pay for VRF. */
     uint256 public immutable subId;
 
-    uint16 public requestConfirmations = 3;
-    uint32 public callbackGasLimit = 250_000;
-    uint32 public numWords = 3;
+    // Gas-optimized constants and immutables
+    /** @notice Number of confirmations VRF should wait before responding. */
+    uint16 public constant REQUEST_CONFIRMATIONS = 3;
+    /** @notice Gas limit forwarded to the VRF callback. */
+    uint32 public constant CALLBACK_GAS_LIMIT = 250_000;
+    /** @notice Number of random words requested from VRF. */
+    uint32 public constant NUM_WORDS = 3;
 
-    uint256 public fee;
+    /** @notice Fee to open a loot box (in native wei). */
+    uint256 public immutable fee;
+    /** @notice Cumulative distribution function built from initial weights. */
     uint32[] public cdf;
+    /** @notice Prize pool array where each element describes a reward. */
     Reward[] public prizePool;
     uint256 private totalRewardsDistributed = 0;
 
+    // ===== Multi-pool support =====
+    /** @notice Per-pool cumulative distribution functions (CDF) built from weights. */
+    mapping(uint256 => uint32[]) public cdfPerPool;
+    /** @notice Per-pool prize arrays. */
+    mapping(uint256 => Reward[]) public prizePoolPerPool;
+    /** @notice Per-pool fee (native payment required when opening a pool). */
+    mapping(uint256 => uint256) public poolFee;
+    /** @notice Count of pools created (0-based ids). */
+    uint256 public poolCount;
+
+    /** @notice Optional tiers contract used to compute user tiers. */
+    address public tiersContract;
+
+    /** @notice Admin address (deployer) with permission to configure optional modules. */
+    address public immutable admin;
+
+    /** @notice Maps VRF request ids to the address that opened the box. */
     mapping(uint256 => address) private waiting;
+    mapping(address => uint256[]) private pendingRewards;
 
-    event Opened(address indexed opener, uint256 indexed reqId);
+    /** @notice Per-user timestamp of last open to enforce cooldowns. */
+    mapping(address => uint256) public lastOpened;
+
+    /** @notice Global cooldown (in seconds) between opens per user. */
+    uint256 public cooldownSeconds;
+
+    /** @notice Emitted when global cooldown is updated. */
+    event CooldownSet(uint256 seconds);
+
+    /** @notice Emitted when a prize's availability timestamp is set. */
+    event PrizeAvailabilitySet(uint256 indexed idx, uint64 availableAfter);
+
+    /**
+     * @notice Emitted when a box is opened and a VRF request is sent.
+     * @param opener The sender who opened the box.
+     * @param reqId The Chainlink VRF request id.
+     * @param poolId The pool id that was opened.
+     */
+    event Opened(address indexed opener, uint256 indexed reqId, uint256 indexed poolId);
+
+    /**
+     * @notice Emitted after a reward has been delivered.
+     * @param opener The recipient of the delivered reward.
+     * @param reward The Reward struct representing the delivered asset.
+     */
     event RewardOut(address indexed opener, Reward reward);
+    event BatchRewardsClaimed(address indexed claimer, uint256 count);
+    event BatchOperationCompleted(address indexed user, string operation, uint256 count);
 
+    /**
+    /** @notice Emitted when a new pool is created. */
+    event PoolCreated(uint256 indexed poolId, uint256 fee);
+
+    /** @notice Emitted when a pool's configuration changes. */
+    event PoolUpdated(uint256 indexed poolId);
+    /** @notice Maps VRF request ids to the address that opened the box. */
+    mapping(uint256 => address) private waiting;
+    /** @notice Maps VRF request ids to the pool id that was opened. */
+    mapping(uint256 => uint256) private waitingPool;
+
+    /** @notice Per-user timestamp of last open to enforce cooldowns. */
+    mapping(address => uint256) public lastOpened;
     constructor(
         address _coordinator,
         uint256  _subId,
         bytes32 _keyHash,
         uint256 _fee,
+        uint256 _cooldownSeconds,
         uint32[] memory _weights,
         Reward[] memory _prizes
     ) VRFConsumerBaseV2Plus(_coordinator) {
@@ -51,20 +135,56 @@ contract SmetReward is
         subId = _subId;
         keyHash = _keyHash;
         fee = _fee;
+        admin = msg.sender;
+        // initialize cooldown (seconds)
+        cooldownSeconds = _cooldownSeconds;
 
-        uint32 acc = 0;
-        for (uint i = 0; i < _weights.length; i++) {
+        // Create default pool (id 0) using the provided fee, weights and prizes
+        uint256 pid = _createPool(_fee, _weights, _prizes);
+        require(pid == 0, "default pid");
+    }
+
+        // Build cumulative distribution function (CDF) from weights.
+        // Example: weights [10, 30, 60] -> cdf [10, 40, 100]
+        // We keep the cumulative sums so we can sample a random number in [0,total)
+        // and select the first index where r < cdf[index]. This implementation uses
+        // `unchecked` loop increments and local length caching to reduce gas.
+        uint256 acc = 0;
+        uint256 len = _weights.length;
+        for (uint256 i = 0; i < len; ) {
             acc += _weights[i];
-            cdf.push(acc);
+            // store as uint32 to keep the original storage type
+            cdf.push(uint32(acc));
+            unchecked { i++; }
         }
 
-        for (uint i = 0; i < _prizes.length; i++) {
-            Reward memory r = _prizes[i];
-            prizePool.push(Reward({
-                assetType: r.assetType,
-                token: r.token,
-                idOrAmount: r.idOrAmount
-            }));
+        uint256 plen = _prizes.length;
+        for (uint256 i = 0; i < plen; ) {
+            Reward memory rr = _prizes[i];
+            prizePool.push(rr);
+            unchecked { i++; }
+        }
+    }
+
+    /**
+     * @dev Internal helper to create a new pool (builds CDF and copies prizes)
+     * @return pid The id assigned to the newly created pool.
+     */
+    function _createPool(uint256 _fee, uint32[] memory _weights, Reward[] memory _prizes) internal returns (uint256 pid) {
+        require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
+        pid = poolCount;
+
+        uint256 acc = 0;
+        for (uint256 i = 0; i < _weights.length; ) {
+            acc += _weights[i];
+            cdfPerPool[pid].push(uint32(acc));
+            unchecked { i++; }
+        }
+
+        for (uint256 i = 0; i < _prizes.length; ) {
+            Reward memory rr = _prizes[i];
+            prizePoolPerPool[pid].push(rr);
+            unchecked { i++; }
         }
         
         // Formal verification: Constructor invariants
@@ -81,17 +201,30 @@ contract SmetReward is
         assert(msg.value == fee);
         assert(prizePool.length > 0);
 
+        // Enforce global cooldown per user to prevent reward farming
+        if (cooldownSeconds > 0) {
+            require(block.timestamp >= lastOpened[msg.sender] + cooldownSeconds, "cooldown");
+        }
+        // Record the time of this open immediately so delayed fulfillment cannot be farmed
+        lastOpened[msg.sender] = block.timestamp;
+
+        // Build a VRF request object. We include `extraArgs` to indicate whether
+        // Chainlink should use native payment (if payInNative is true) or LINK.
+        // The request parameters use gas-optimized constants to reduce storage reads.
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
             keyHash: keyHash,
             subId: uint256(subId),
-            requestConfirmations: requestConfirmations,
-            callbackGasLimit: callbackGasLimit,
-            numWords: numWords,
+            requestConfirmations: REQUEST_CONFIRMATIONS,
+            callbackGasLimit: CALLBACK_GAS_LIMIT,
+            numWords: NUM_WORDS,
             extraArgs: VRFV2PlusClient._argsToBytes(
                 VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
             )
         });
 
+        // Send the request to the coordinator and store the request id -> opener
+        // mapping so we can attribute the eventual randomness response to the
+        // original caller in `fulfillRandomWords`.
         reqId = s_vrfCoordinator.requestRandomWords(r);
 
         waiting[reqId] = msg.sender;
@@ -103,6 +236,7 @@ contract SmetReward is
     }
 
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
+        // Map the VRF request id back to the original opener and pool
         address opener = waiting[reqId];
         require(opener != address(0), "no opener");
         
@@ -110,12 +244,22 @@ contract SmetReward is
         assert(opener != address(0));
         assert(rnd.length > 0);
 
+        // Sample from the CDF of the selected pool using the first random word.
+        uint32[] storage cdf = cdfPerPool[pid];
         uint256 total = cdf[cdf.length - 1];
         uint256 r = rnd[0] % total;
 
-        uint256 idx;
-        for (idx = 0; idx < cdf.length; idx++) {
-            if (r < cdf[idx]) break;
+        // Use binary search to find the first index whose CDF exceeds the sampled
+        // value. Binary search reduces the number of storage reads from O(n) to O(log n).
+        uint256 low = 0;
+        uint256 high = cdf.length - 1;
+        while (low < high) {
+            uint256 mid = (low + high) >> 1;
+            if (r < cdf[mid]) {
+                high = mid;
+            } else {
+                low = mid + 1;
+            }
         }
         
         // Formal verification: Index bounds
@@ -132,28 +276,44 @@ contract SmetReward is
         
         emit RewardOut(opener, rw);
 
+        // Clean up the mappings to free storage and prevent re-use
         delete waiting[reqId];
         
         // Formal verification: Cleanup
         assert(waiting[reqId] == address(0));
     }
 
+    /**
+     * @dev Internal helper to deliver a selected `Reward` to `to`.
+     * Supports ERC20 transfers, ERC721 safeTransferFrom, and ERC1155 single transfer.
+     * @param to Recipient address.
+     * @param rw Reward descriptor to deliver.
+     */
     function _deliver(address to, Reward memory rw) private {
         // Formal verification: Pre-conditions
         assert(to != address(0));
         assert(rw.assetType >= 1 && rw.assetType <= 3);
         
         if (rw.assetType == 1) {
+            // For ERC20, transfer the specified amount (idOrAmount is used as amount)
             require(IERC20(rw.token).transfer(to, rw.idOrAmount), "erc20 transfer failed");
         } else if (rw.assetType == 2) {
+            // For ERC721, perform a safeTransferFrom for the provided token id
             IERC721(rw.token).safeTransferFrom(address(this), to, rw.idOrAmount);
         } else if (rw.assetType == 3) {
+            // For ERC1155, transfer a single unit of the provided id
             IERC1155(rw.token).safeTransferFrom(address(this), to, rw.idOrAmount, 1, "");
         } else {
             revert("invalid assetType");
         }
     }
 
+    /**
+     * @notice Refill the contract with ERC20 tokens to fund ERC20 prizes.
+     * @dev Caller must `approve` this contract to spend `amount` of `token` beforehand.
+     * @param token The ERC20 token to transfer in.
+     * @param amount Amount of tokens to transfer into the contract.
+     */
     function refill(IERC20 token, uint256 amount) external {
         require(amount > 0, "!amount");
         
@@ -169,19 +329,44 @@ contract SmetReward is
         assert(token.balanceOf(address(this)) == contractBalanceBefore + amount);
     }
 
+    function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
+        require(tokens.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < tokens.length; i++) {
+            require(amounts[i] > 0, "!amount");
+            tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
+        }
+        emit BatchOperationCompleted(msg.sender, "batchRefill", tokens.length);
+    }
+
     receive() external payable {}
+
+    /**
+     * @notice Helper to query the number of prizes in the pool.
+     */
+    function prizePoolLength() external view returns (uint256) {
+        return prizePool.length;
+    }
 
     // ===== ERC721 & ERC1155 Receiver Support =====
 
+    /**
+     * @notice ERC721 token receiver handler required for safe transfers to this contract.
+     * @return selector Magic value to accept the transfer.
+     */
     function onERC721Received(
         address,
         address,
         uint256,
         bytes calldata
     ) external pure override returns (bytes4) {
+        // Acknowledge ERC721 receipt; required to accept safeTransferFrom
         return IERC721Receiver.onERC721Received.selector;
     }
 
+    /**
+     * @notice ERC1155 single token receiver handler required for safe transfers to this contract.
+     * @return selector Magic value to accept the transfer.
+     */
     function onERC1155Received(
         address,
         address,
@@ -189,9 +374,14 @@ contract SmetReward is
         uint256,
         bytes calldata
     ) external pure override returns (bytes4) {
+        // Acknowledge ERC1155 receipt; required to accept safeTransferFrom
         return IERC1155Receiver.onERC1155Received.selector;
     }
 
+    /**
+     * @notice ERC1155 batch receiver handler required for safe transfers to this contract.
+     * @return selector Magic value to accept the batch transfer.
+     */
     function onERC1155BatchReceived(
         address,
         address,
@@ -199,9 +389,15 @@ contract SmetReward is
         uint256[] calldata,
         bytes calldata
     ) external pure override returns (bytes4) {
+        // Acknowledge batch ERC1155 receipt
         return IERC1155Receiver.onERC1155BatchReceived.selector;
     }
 
+    /**
+     * @notice Query whether a given interface is supported (ERC165).
+     * @param interfaceId The interface id to check.
+     * @return True if the interface is supported.
+     */
     function supportsInterface(bytes4 interfaceId)
         public
         pure

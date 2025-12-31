@@ -6,6 +6,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/providers/Web3Provider";
 import { Button } from "@/components/ui/button";
+import { ThemeProvider } from "@/components/ui/ThemeProvider";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { WalletConnectButton } from "@/components/WalletConnectButton";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,44 +35,28 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col`}>
         <Web3Provider>
-          <header className="border-b">
-            <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-              <h1 className="text-xl font-bold">Smet</h1>
-              <div className="flex items-center gap-4">
-                <WalletConnectButton />
+          <ThemeProvider>
+            <header className="border-b">
+              <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 className="text-xl font-bold">Smet</h1>
+                <div className="flex items-center gap-4">
+                  <ThemeToggle />
+                  <WalletConnectButton />
+                </div>
               </div>
-            </div>
-          </header>
-          <main className="flex-1">
-            {children}
-          </main>
-          <footer className="border-t py-4 mt-8">
-            <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} Smet. All rights reserved.
-            </div>
-          </footer>
+            </header>
+            <main className="flex-1">
+              {children}
+            </main>
+            <footer className="border-t py-4 mt-8">
+              <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+                &copy; {new Date().getFullYear()} Smet. All rights reserved.
+              </div>
+            </footer>
+          </ThemeProvider>
         </Web3Provider>
       </body>
     </html>
   );
 }
 
-function WalletConnectButton() {
-  const { isConnected, address } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-
-  if (isConnected && address) {
-    return (
-      <Button variant="outline" onClick={() => disconnect()}>
-        {`${address.slice(0, 6)}...${address.slice(-4)}`}
-      </Button>
-    );
-  }
-
-  return (
-    <Button onClick={() => connect({ connector: connectors[0] })}>
-      Connect Wallet
-    </Button>
-  );
-}
