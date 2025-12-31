@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+import "./InputValidator.sol";
 
 struct Reward {
     uint8 assetType;
@@ -45,7 +46,19 @@ contract SmetReward is
         uint32[] memory _weights,
         Reward[] memory _prizes
     ) VRFConsumerBaseV2Plus(_coordinator) {
-        require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
+        InputValidator.validateAddress(_coordinator);
+        InputValidator.validateAmount(_fee);
+        InputValidator.validateArrayLength(_weights.length);
+        InputValidator.validateArrayLength(_prizes.length);
+        InputValidator.validateArrayLengths(_weights.length, _prizes.length);
+        
+        for (uint i = 0; i < _prizes.length; i++) {
+            InputValidator.validateAddress(_prizes[i].token);
+            InputValidator.validateAssetType(_prizes[i].assetType);
+            if (_prizes[i].assetType == 1) {
+                InputValidator.validateAmount(_prizes[i].idOrAmount);
+            }
+        }
         VRF_COORD = _coordinator;
         subId = _subId;
         keyHash = _keyHash;
