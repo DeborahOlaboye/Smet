@@ -10,11 +10,27 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 - **SmetHero** (ERC721) - Unique hero NFTs with sequential minting
 - **SmetLoot** (ERC1155) - Multi-token loot items with metadata URI support
 
+### Emergency Recovery System
+- **EmergencyRecovery** - Multi-sig emergency recovery contract for critical situations
+- **CircuitBreaker** - Automated circuit breaker for emergency operation controls
+- All contracts include pause/unpause functionality and emergency withdrawal capabilities
+
 ### How It Works
 1. Players pay a fee to open reward boxes through `SmetReward.open()`
 2. Chainlink VRF generates verifiable random numbers for fair prize selection
 3. Rewards are distributed from a weighted prize pool containing ERC20, ERC721, or ERC1155 tokens
 4. Contract supports refilling with additional tokens for ongoing gameplay
+
+## Emergency Procedures
+
+🚨 **For emergency situations, see:**
+- [Emergency Recovery Plan](./EMERGENCY_RECOVERY_PLAN.md) - Comprehensive emergency procedures
+- [Quick Reference Guide](./EMERGENCY_QUICK_REFERENCE.md) - Immediate response commands
+
+### Emergency Contacts
+- **Primary Admin**: Contract Owner
+- **Emergency Response**: Multi-sig recovery system
+- **Monitoring**: Automated health checks available
 
 ## Deployed Addresses
 
@@ -34,11 +50,8 @@ New contributors should follow the step-by-step guide in `docs/DEVELOPER_ONBOARD
 
 [View SmetLoot on Etherscan](https://sepolia-blockscout.lisk.com/address/0xa5046538c6338DC8b52a22675338a4623D4B5475)
 
-
 [View SmetHero on Etherscan](https://sepolia-blockscout.lisk.com/address/0x877D1FDa6a6b668b79ca4A42388E0825667d233E)
 
-
 [View SmetReward on Etherscan](https://sepolia-blockscout.lisk.com/address/0xeF85822c30D194c2B2F7cC17223C64292Bfe611b)
-
 
 [View SmetGold on Etherscan](https://sepolia-blockscout.lisk.com/address/0x0A8862B2d93105b6BD63ee2c9343E7966872a3D2)

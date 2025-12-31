@@ -1,52 +1,42 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
 
-contract CircuitBreaker is Pausable, Ownable {
-    uint256 public constant MAX_DAILY_OPERATIONS = 1000;
-    uint256 public constant DAILY_RESET_PERIOD = 24 hours;
+contract CircuitBreaker is AccessControl {
+    bytes32 public constant BREAKER_ROLE = keccak256("BREAKER_ROLE");
     
-    uint256 public dailyOperationCount;
-    uint256 public lastResetTime;
+    mapping(address => bool) public circuitBroken;
+    mapping(address => uint256) public breakTimestamp;
     
-    event CircuitBreakerTriggered(string reason, uint256 operationCount);
-    event DailyLimitReset(uint256 newResetTime);
+    uint256 public constant BREAK_DURATION = 1 hours;
     
-    constructor() Ownable(msg.sender) {
-        lastResetTime = block.timestamp;
-    }
+    event CircuitBroken(address indexed contract_, address indexed breaker, string reason);
+    event CircuitRestored(address indexed contract_, address indexed restorer);
     
-    modifier circuitBreakerCheck() {
-        _checkDailyLimit();
+    modifier notBroken(address contract_) {
+        require(!isCircuitBroken(contract_), "Circuit broken");
         _;
-        _incrementOperationCount();
     }
     
-    function _checkDailyLimit() internal {
-        if (block.timestamp >= lastResetTime + DAILY_RESET_PERIOD) {
-            dailyOperationCount = 0;
-            lastResetTime = block.timestamp;
-            emit DailyLimitReset(lastResetTime);
-        }
-        
-        if (dailyOperationCount >= MAX_DAILY_OPERATIONS) {
-            _pause();
-            emit CircuitBreakerTriggered("Daily operation limit exceeded", dailyOperationCount);
-        }
+    constructor() {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(BREAKER_ROLE, msg.sender);
     }
     
-    function _incrementOperationCount() internal {
-        dailyOperationCount++;
+    function breakCircuit(address contract_, string calldata reason) external onlyRole(BREAKER_ROLE) {
+        circuitBroken[contract_] = true;
+        breakTimestamp[contract_] = block.timestamp;
+        emit CircuitBroken(contract_, msg.sender, reason);
     }
     
-    function emergencyPause() external onlyOwner {
-        _pause();
-        emit CircuitBreakerTriggered("Emergency pause activated", dailyOperationCount);
+    function restoreCircuit(address contract_) external onlyRole(BREAKER_ROLE) {
+        circuitBroken[contract_] = false;
+        emit CircuitRestored(contract_, msg.sender);
     }
     
-    function emergencyUnpause() external onlyOwner {
-        _unpause();
+    function isCircuitBroken(address contract_) public view returns (bool) {
+        if (!circuitBroken[contract_]) return false;
+        return block.timestamp < breakTimestamp[contract_] + BREAK_DURATION;
     }
 }

@@ -1,28 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SmetHero is ERC721, AccessControl, Pausable {
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    
+contract SmetHero is ERC721, Pausable, Ownable {
     uint256 public nextId = 1;
+    address public emergencyRecovery;
     
-    event ContractPaused(address indexed pauser, string reason);
-    event ContractUnpaused(address indexed unpauser);
-    event HeroMinted(address indexed to, uint256 indexed tokenId, address indexed minter);
-    event HeroBurned(uint256 indexed tokenId, address indexed burner);
-    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
+    event EmergencyRecoverySet(address indexed recovery);
 
-    constructor() ERC721("SmetHero", "SHERO") {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
-        _grantRole(PAUSER_ROLE, msg.sender);
-    }
+    constructor() ERC721("SmetHero", "SHERO") Ownable(msg.sender) {}
 
-    function mint(address to) external onlyRole(MINTER_ROLE) whenNotPaused returns (uint256 id) {
+    function mint(address to) external whenNotPaused returns (uint256 id) {
         id = nextId++;
         totalMinted++;
         _safeMint(to, id);
@@ -100,5 +90,30 @@ contract SmetHero is ERC721, AccessControl, Pausable {
     function burn(uint256 tokenId) external whenNotPaused {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         _burn(tokenId);
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+    
+    function setEmergencyRecovery(address _emergencyRecovery) external onlyOwner {
+        emergencyRecovery = _emergencyRecovery;
+        emit EmergencyRecoverySet(_emergencyRecovery);
+    }
+    
+    function transferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        super.transferFrom(from, to, tokenId);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
+        super.safeTransferFrom(from, to, tokenId);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 tokenId, bytes memory data) public override whenNotPaused {
+        super.safeTransferFrom(from, to, tokenId, data);
     }
 }

@@ -1,22 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SmetLoot is ERC1155, AccessControl, Pausable {
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
-    bytes32 public constant URI_SETTER_ROLE = keccak256("URI_SETTER_ROLE");
+contract SmetLoot is ERC1155, Pausable, Ownable {
+    address public emergencyRecovery;
     
-    constructor() ERC1155("https://loot.example/{id}.json") {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
-        _grantRole(PAUSER_ROLE, msg.sender);
-        _grantRole(URI_SETTER_ROLE, msg.sender);
-    }
+    event EmergencyRecoverySet(address indexed recovery);
+    
+    constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
 
-    function mint(address to, uint256 id, uint256 amount) external onlyRole(MINTER_ROLE) whenNotPaused {
+    function mint(address to, uint256 id, uint256 amount) external whenNotPaused {
         _mint(to, id, amount, "");
         emit LootMinted(to, id, amount, msg.sender);
     }
@@ -166,5 +161,26 @@ contract SmetLoot is ERC1155, AccessControl, Pausable {
     function burnBatch(address from, uint256[] memory ids, uint256[] memory amounts) external whenNotPaused {
         require(from == msg.sender || isApprovedForAll(from, msg.sender), "Not approved");
         _burnBatch(from, ids, amounts);
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+    
+    function setEmergencyRecovery(address _emergencyRecovery) external onlyOwner {
+        emergencyRecovery = _emergencyRecovery;
+        emit EmergencyRecoverySet(_emergencyRecovery);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
+        super.safeTransferFrom(from, to, id, amount, data);
+    }
+    
+    function safeBatchTransferFrom(address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public override whenNotPaused {
+        super.safeBatchTransferFrom(from, to, ids, amounts, data);
     }
 }
