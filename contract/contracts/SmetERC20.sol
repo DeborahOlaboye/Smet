@@ -14,3 +14,21 @@ contract SmetGold is ERC20 {
         assert(totalSupply() == INITIAL_SUPPLY);
         assert(balanceOf(msg.sender) == INITIAL_SUPPLY);
     }
+    
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        address owner = _msgSender();
+        uint256 senderBalanceBefore = balanceOf(owner);
+        uint256 recipientBalanceBefore = balanceOf(to);
+        uint256 totalSupplyBefore = totalSupply();
+        
+        bool result = super.transfer(to, amount);
+        
+        // Formal verification: Balance conservation
+        if (owner != to) {
+            assert(balanceOf(owner) == senderBalanceBefore - amount);
+            assert(balanceOf(to) == recipientBalanceBefore + amount);
+        }
+        assert(totalSupply() == totalSupplyBefore);
+        
+        return result;
+    }
