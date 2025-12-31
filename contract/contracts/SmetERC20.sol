@@ -5,16 +5,21 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract SmetGold is ERC20, Pausable, Ownable {
+    event ContractPaused(address indexed pauser, string reason);
+    event ContractUnpaused(address indexed unpauser);
+    
     constructor() ERC20("SmetGold", "SGOLD") Ownable(msg.sender) {
         _mint(msg.sender, 10000000 ether);
     }
     
     function pause() external onlyOwner {
         _pause();
+        emit ContractPaused(msg.sender, "Manual pause");
     }
     
     function unpause() external onlyOwner {
         _unpause();
+        emit ContractUnpaused(msg.sender);
     }
     
     function transfer(address to, uint256 amount) public override whenNotPaused returns (bool) {
