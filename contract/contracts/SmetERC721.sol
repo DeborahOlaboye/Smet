@@ -4,6 +4,9 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
 contract SmetHero is ERC721 {
     uint256 public nextId = 1;
+    
+    event BatchMintCompleted(address indexed minter, uint256 count);
+    event BatchTransferCompleted(address indexed sender, uint256 count);
 
     constructor() ERC721("SmetHero", "SHERO") {}
 
@@ -18,6 +21,7 @@ contract SmetHero is ERC721 {
             ids[i] = nextId++;
             _safeMint(recipients[i], ids[i]);
         }
+        emit BatchMintCompleted(msg.sender, recipients.length);
     }
 
     function batchTransfer(address[] calldata to, uint256[] calldata tokenIds) external {
@@ -25,6 +29,7 @@ contract SmetHero is ERC721 {
         for (uint256 i = 0; i < to.length; i++) {
             safeTransferFrom(msg.sender, to[i], tokenIds[i]);
         }
+        emit BatchTransferCompleted(msg.sender, to.length);
     }
 
     function batchApprove(address[] calldata spenders, uint256[] calldata tokenIds) external {
