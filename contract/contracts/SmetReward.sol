@@ -145,6 +145,12 @@ contract SmetReward is
         token.transferFrom(msg.sender, address(this), amount);
         emit TokenRefilled(address(token), amount, msg.sender);
     }
+    
+    function updateFee(uint256 newFee) external onlyOwner {
+        uint256 oldFee = fee;
+        fee = newFee;
+        emit FeeUpdated(oldFee, newFee, msg.sender);
+    }
 
     receive() external payable {}
 
