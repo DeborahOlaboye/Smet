@@ -166,6 +166,7 @@ contract SmetReward is
     
     function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
         InputValidator.validateArrayLength(tokens.length);
+        InputValidator.validateBatchSize(tokens.length);
         InputValidator.validateArrayLengths(tokens.length, amounts.length);
         for (uint256 i = 0; i < tokens.length; i++) {
             InputValidator.validateAddress(address(tokens[i]));
