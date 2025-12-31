@@ -42,6 +42,7 @@ contract SmetReward is
     }
     
     mapping(uint256 => address) private waiting;
+    mapping(uint256 => bool) private delivered;
 
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
@@ -102,6 +103,7 @@ contract SmetReward is
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
         address opener = waiting[reqId];
         require(opener != address(0), "no opener");
+        require(!delivered[reqId], "already delivered");
 
         uint256 total = cdf[cdf.length - 1];
         uint256 r = rnd[0] % total;
@@ -113,7 +115,8 @@ contract SmetReward is
 
         Reward memory rw = prizePool[idx];
         
-        // Clear the waiting mapping before external calls to prevent reentrancy
+        // Mark as delivered and clear waiting before external calls
+        delivered[reqId] = true;
         delete waiting[reqId];
         
         _deliver(opener, rw);
