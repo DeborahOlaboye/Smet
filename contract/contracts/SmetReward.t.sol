@@ -142,4 +142,13 @@ contract SmetRewardTest is Test {
         vm.expectRevert(bytes("not admin"));
         box.setCooldownSeconds(0);
     }
+
+    function test_isPrizeAvailable_view() external {
+        // Initially all prizes are available
+        assertEq(box.isPrizeAvailable(0), true);
+
+        // Lock prize 0
+        box.setPrizeAvailableAfter(0, uint64(block.timestamp + 1000));
+        assertEq(box.isPrizeAvailable(0), false);
+    }
 }
