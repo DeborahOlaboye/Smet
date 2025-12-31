@@ -10,7 +10,8 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 - **SmetHero** (ERC721) - Unique hero NFTs with sequential minting
 - **SmetLoot** (ERC1155) - Multi-token loot items with metadata URI support
 
-### Emergency Recovery System
+### Security Infrastructure
+- **Timelock** - Time-delayed execution for critical administrative functions
 - **EmergencyRecovery** - Multi-sig emergency recovery contract for critical situations
 - **CircuitBreaker** - Automated circuit breaker for emergency operation controls
 - All contracts include pause/unpause functionality and emergency withdrawal capabilities
@@ -21,16 +22,16 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 3. Rewards are distributed from a weighted prize pool containing ERC20, ERC721, or ERC1155 tokens
 4. Contract supports refilling with additional tokens for ongoing gameplay
 
-## Emergency Procedures
+## Security Features
 
-🚨 **For emergency situations, see:**
-- [Emergency Recovery Plan](./EMERGENCY_RECOVERY_PLAN.md) - Comprehensive emergency procedures
-- [Quick Reference Guide](./EMERGENCY_QUICK_REFERENCE.md) - Immediate response commands
+🔒 **Timelock Protection**: Critical functions require 24-hour delay
+- Fee updates, minting operations, and configuration changes
+- Community review period before execution
+- See [Timelock Documentation](./TIMELOCK_DOCUMENTATION.md)
 
-### Emergency Contacts
-- **Primary Admin**: Contract Owner
-- **Emergency Response**: Multi-sig recovery system
-- **Monitoring**: Automated health checks available
+🚨 **Emergency Procedures**: Comprehensive emergency response system
+- [Emergency Recovery Plan](./EMERGENCY_RECOVERY_PLAN.md)
+- [Quick Reference Guide](./EMERGENCY_QUICK_REFERENCE.md)
 
 ## Deployed Addresses
 

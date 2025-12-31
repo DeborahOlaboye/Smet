@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
@@ -38,7 +37,6 @@ contract SmetReward is
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver,
-    Pausable,
     Ownable
 {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -86,10 +84,16 @@ contract SmetReward is
     }
     
     mapping(uint256 => address) private waiting;
-    address public emergencyRecovery;
+    address public timelock;
     
-    event EmergencyRecoverySet(address indexed recovery);
-    event EmergencyWithdrawal(address indexed token, uint256 amount, address indexed recipient);
+    modifier onlyTimelock() {
+        require(msg.sender == timelock, "Only timelock");
+        _;
+    }
+    
+    event TimelockSet(address indexed timelock);
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
+    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords);
 
     /**
      * @notice Emitted after a reward has been delivered.
@@ -376,55 +380,29 @@ contract SmetReward is
         emit FeeUpdated(oldFee, newFee);
     }
     
-    function pause() external onlyOwner {
-        _pause();
+    function setTimelock(address _timelock) external onlyOwner {
+        timelock = _timelock;
+        emit TimelockSet(_timelock);
     }
     
-    function unpause() external onlyOwner {
-        _unpause();
+    function updateFee(uint256 newFee) external onlyTimelock {
+        uint256 oldFee = fee;
+        fee = newFee;
+        emit FeeUpdated(oldFee, newFee);
     }
     
-    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyOwner nonReentrant {
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyTimelock {
         requestConfirmations = _requestConfirmations;
         callbackGasLimit = _callbackGasLimit;
         numWords = _numWords;
         emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords);
     }
     
-    function addPrize(Reward memory newReward, uint32 weight) external onlyOwner nonReentrant {
-        uint256 prizeIndex = prizePool.length;
+    function addPrize(Reward memory newReward, uint32 weight) external onlyTimelock {
         prizePool.push(newReward);
         uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
         cdf.push(lastCdf + weight);
-        emit PrizeAdded(prizeIndex, newReward, weight);
     }
-    
-    function pause() external onlyOwner {
-        _pause();
-    }
-    
-    function unpause() external onlyOwner {
-        _unpause();
-    }
-    
-    function setEmergencyRecovery(address _emergencyRecovery) external onlyOwner {
-        emergencyRecovery = _emergencyRecovery;
-        emit EmergencyRecoverySet(_emergencyRecovery);
-    }
-    
-    function emergencyWithdraw(address token, uint256 amount) external {
-        require(msg.sender == owner() || msg.sender == emergencyRecovery, "Unauthorized");
-        
-        if (token == address(0)) {
-            payable(msg.sender).transfer(amount);
-        } else {
-            IERC20(token).transfer(msg.sender, amount);
-        }
-        
-        emit EmergencyWithdrawal(token, amount, msg.sender);
-    }
-
-    receive() external payable nonReentrant {}
 
     /**
      * @notice Helper to query the number of prizes in the pool.
