@@ -147,6 +147,10 @@ contract SmetReward is
             IERC20(token).transfer(msg.sender, amount);
         }
     }
+    
+    function updateFee(uint256 newFee) external onlyOwner nonReentrant {
+        fee = newFee;
+    }
 
     receive() external payable nonReentrant {}
 
