@@ -157,6 +157,19 @@ contract SmetRewardTest is Test {
         assertEq(box.isPrizeAvailable(0), false);
     }
 
+    function test_noPrizesAvailable_reverts() external {
+        // Lock all prizes into the future
+        for (uint256 i = 0; i < 3; i++) {
+            box.setPrizeAvailableAfter(i, uint64(block.timestamp + 1000));
+        }
+
+        vm.prank(alice);
+        box.open{value: 0.05 ether}(true);
+
+        vm.expectRevert(bytes("no available prize"));
+        box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
+    }
+
     function test_lastOpened_set() external {
         vm.prank(alice);
         box.open{value: 0.05 ether}(true);
