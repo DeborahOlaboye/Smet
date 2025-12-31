@@ -137,9 +137,19 @@ contract SmetReward is
         }
     }
 
-    function refill(IERC20 token, uint256 amount) external {
+    function refill(IERC20 token, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
+    }
+    
+    function updateFee(uint256 newFee) external onlyRole(ADMIN_ROLE) {
+        fee = newFee;
+    }
+    
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyRole(ADMIN_ROLE) {
+        requestConfirmations = _requestConfirmations;
+        callbackGasLimit = _callbackGasLimit;
+        numWords = _numWords;
     }
 
     receive() external payable {}
