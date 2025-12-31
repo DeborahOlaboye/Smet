@@ -52,6 +52,11 @@ contract SmetReward is
         Reward[] memory _prizes
     ) VRFConsumerBaseV2Plus(_coordinator) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
+        
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, msg.sender);
+        _grantRole(OPERATOR_ROLE, msg.sender);
+        
         VRF_COORD = _coordinator;
         subId = _subId;
         keyHash = _keyHash;
