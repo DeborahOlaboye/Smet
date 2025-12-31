@@ -138,6 +138,43 @@ contract SmetReward is
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
     }
+    
+    function batchOpen(uint256 count, bool payInNative) external payable returns (uint256[] memory reqIds) {
+        InputValidator.validateAmount(count);
+        require(count <= 10, "Max 10 opens");
+        InputValidator.validateAmount(msg.value);
+        require(msg.value == fee * count, "!fee");
+        
+        reqIds = new uint256[](count);
+        for (uint256 i = 0; i < count; i++) {
+            VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
+                keyHash: keyHash,
+                subId: uint256(subId),
+                requestConfirmations: requestConfirmations,
+                callbackGasLimit: callbackGasLimit,
+                numWords: numWords,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
+                )
+            });
+            
+            reqIds[i] = s_vrfCoordinator.requestRandomWords(r);
+            waiting[reqIds[i]] = msg.sender;
+            emit Opened(msg.sender, reqIds[i]);
+        }
+    }
+    
+    function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {
+        InputValidator.validateArrayLength(tokens.length);
+        InputValidator.validateArrayLengths(tokens.length, amounts.length);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            InputValidator.validateAddress(address(tokens[i]));
+            InputValidator.validateAmount(amounts[i]);
+        }
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
+        }
+    }
 
     receive() external payable {}
 
