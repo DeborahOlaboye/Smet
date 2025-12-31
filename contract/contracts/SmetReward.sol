@@ -78,7 +78,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable returns (uint256 reqId) {
+    function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
@@ -96,6 +96,14 @@ contract SmetReward is
 
         waiting[reqId] = msg.sender;
         emit Opened(msg.sender, reqId);
+    }
+    
+    function pause() external onlyRole(ADMIN_ROLE) {
+        _pause();
+    }
+    
+    function unpause() external onlyRole(ADMIN_ROLE) {
+        _unpause();
     }
 
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
