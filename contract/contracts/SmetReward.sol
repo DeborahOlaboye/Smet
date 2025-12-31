@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
@@ -36,10 +38,11 @@ contract SmetReward is
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver,
-    Pausable,
-    Ownable
+    AccessControl,
+    Pausable
 {
-    /** @notice Chainlink VRF coordinator address. */
+    bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
+    bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
     address public immutable VRF_COORD;
     /** @notice Active key hash used for VRF requests. */
     bytes32 public immutable keyHash;
@@ -108,15 +111,8 @@ contract SmetReward is
      * @param reward The Reward struct representing the delivered asset.
      */
     event RewardOut(address indexed opener, Reward reward);
-    event ContractPaused(address indexed pauser, string reason);
-    event ContractUnpaused(address indexed unpauser);
-    event RewardDistributed(address indexed recipient, uint8 assetType, address indexed token, uint256 idOrAmount);
-    event PrizePoolUpdated(uint256 indexed prizeIndex, uint8 assetType, address indexed token, uint256 idOrAmount);
-    event FeeUpdated(uint256 oldFee, uint256 newFee, address indexed updater);
-    event TokenRefilled(address indexed token, uint256 amount, address indexed refiller);
-    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords, address indexed updater);
-    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
-    event EmergencyWithdrawal(address indexed token, uint256 amount, address indexed recipient, address indexed executor);
+    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
+    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
 
     /** @notice Emitted when a pool's configuration changes. */
     event PoolUpdated(uint256 indexed poolId);
@@ -137,6 +133,11 @@ contract SmetReward is
         Reward[] memory _prizes
     ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
+        
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(ADMIN_ROLE, msg.sender);
+        _grantRole(OPERATOR_ROLE, msg.sender);
+        
         VRF_COORD = _coordinator;
         subId = _subId;
         keyHash = _keyHash;
@@ -170,44 +171,6 @@ contract SmetReward is
             prizePool.push(rr);
             unchecked { i++; }
         }
-    }
-
-    /**
-     * @dev Internal helper to create a new pool (builds CDF and copies prizes)
-     * @return pid The id assigned to the newly created pool.
-     */
-    function _createPool(uint256 _fee, uint32[] memory _weights, Reward[] memory _prizes) internal returns (uint256 pid) {
-        require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
-        pid = poolCount;
-
-        uint256 acc = 0;
-        for (uint256 i = 0; i < _weights.length; ) {
-            acc += _weights[i];
-            cdfPerPool[pid].push(uint32(acc));
-            unchecked { i++; }
-        }
-
-        for (uint256 i = 0; i < _prizes.length; ) {
-            Reward memory rr = _prizes[i];
-            prizePoolPerPool[pid].push(rr);
-            unchecked { i++; }
-        }
-        
-        // Formal verification: Constructor invariants
-        assert(cdf.length == _weights.length);
-        assert(prizePool.length == _prizes.length);
-        assert(fee == _fee);
-        assert(totalRewardsDistributed == 0);
-    }
-    
-    function pause() external onlyOwner {
-        _pause();
-        emit ContractPaused(msg.sender, "Manual pause");
-    }
-    
-    function unpause() external onlyOwner {
-        _unpause();
-        emit ContractUnpaused(msg.sender);
     }
 
     function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
@@ -249,6 +212,14 @@ contract SmetReward is
         assert(waiting[reqId] == msg.sender);
         
         emit Opened(msg.sender, reqId);
+    }
+    
+    function pause() external onlyRole(ADMIN_ROLE) {
+        _pause();
+    }
+    
+    function unpause() external onlyRole(ADMIN_ROLE) {
+        _unpause();
     }
 
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
@@ -326,7 +297,7 @@ contract SmetReward is
         emit RewardDistributed(to, rw.assetType, rw.token, rw.idOrAmount);
     }
 
-    function refill(IERC20 token, uint256 amount) external whenNotPaused {
+    function refill(IERC20 token, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
         require(amount > 0, "!amount");
         
         // Formal verification: Pre-conditions
@@ -365,6 +336,51 @@ contract SmetReward is
             IERC20(token).transfer(msg.sender, amount);
         }
         emit EmergencyWithdrawal(token, amount, msg.sender, msg.sender);
+    }
+    
+    function updateFee(uint256 newFee) external onlyRole(ADMIN_ROLE) {
+        fee = newFee;
+    }
+    
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyRole(ADMIN_ROLE) {
+        requestConfirmations = _requestConfirmations;
+        callbackGasLimit = _callbackGasLimit;
+        numWords = _numWords;
+    }
+    
+    function emergencyWithdraw(address token, uint256 amount) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (token == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            IERC20(token).transfer(msg.sender, amount);
+        }
+    }
+    
+    function grantOperatorRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(OPERATOR_ROLE, account);
+    }
+    
+    function revokeOperatorRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(OPERATOR_ROLE, account);
+    }
+    
+    function grantAdminRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        grantRole(ADMIN_ROLE, account);
+    }
+    
+    function revokeAdminRole(address account) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        revokeRole(ADMIN_ROLE, account);
+    }
+    
+    function updatePrizePool(uint256 index, Reward memory newReward) external onlyRole(ADMIN_ROLE) {
+        require(index < prizePool.length, "Invalid index");
+        prizePool[index] = newReward;
+    }
+    
+    function addPrize(Reward memory newReward, uint32 weight) external onlyRole(ADMIN_ROLE) {
+        prizePool.push(newReward);
+        uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
+        cdf.push(lastCdf + weight);
     }
 
     receive() external payable {}
@@ -429,11 +445,12 @@ contract SmetReward is
      */
     function supportsInterface(bytes4 interfaceId)
         public
-        pure
-        override
+        view
+        override(AccessControl)
         returns (bool)
     {
         return interfaceId == type(IERC1155Receiver).interfaceId ||
-               interfaceId == type(IERC721Receiver).interfaceId;
+               interfaceId == type(IERC721Receiver).interfaceId ||
+               super.supportsInterface(interfaceId);
     }
 }
