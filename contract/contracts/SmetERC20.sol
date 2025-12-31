@@ -3,12 +3,51 @@ pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./InputValidator.sol";
 
+/**
+ * @title SmetGold
+ * @notice Minimal ERC20 token used as an in-game currency for rewards.
+ * @dev Mints a fixed initial supply to the deployer for seeding the prize pool.
+ */
 contract SmetGold is ERC20 {
     using InputValidator for address;
     using InputValidator for uint256;
     
     constructor() ERC20("SmetGold", "SGOLD") {
-        _mint(msg.sender, 10000000 ether);
+        deploymentTimestamp = block.timestamp;
+        _mint(msg.sender, INITIAL_SUPPLY);
+        
+        // Formal verification: Total supply invariant
+        assert(totalSupply() == INITIAL_SUPPLY);
+        assert(balanceOf(msg.sender) == INITIAL_SUPPLY);
+    }
+    
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        address owner = _msgSender();
+        uint256 senderBalanceBefore = balanceOf(owner);
+        uint256 recipientBalanceBefore = balanceOf(to);
+        uint256 totalSupplyBefore = totalSupply();
+        
+        bool result = super.transfer(to, amount);
+        
+        // Formal verification: Balance conservation
+        if (owner != to) {
+            assert(balanceOf(owner) == senderBalanceBefore - amount);
+            assert(balanceOf(to) == recipientBalanceBefore + amount);
+        }
+        assert(totalSupply() == totalSupplyBefore);
+        
+        return result;
+    }
+    
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        address owner = _msgSender();
+        
+        bool result = super.approve(spender, amount);
+        
+        // Formal verification: Allowance correctness
+        assert(allowance(owner, spender) == amount);
+        
+        return result;
     }
     
     function transfer(address to, uint256 amount) public override returns (bool) {
