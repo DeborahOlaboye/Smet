@@ -7,7 +7,7 @@ import "../contracts/SmetERC20.sol";
 
 contract TestSmetReward is SmetReward {
     constructor(uint32[] memory weights, Reward[] memory prizes)
-        SmetReward(address(0), 0, bytes32(0), 0, weights, prizes) {}
+        SmetReward(address(0), 0, bytes32(0), 0, 0, weights, prizes) {}
 
     /// @notice Expose the selection logic used by fulfillRandomWords for testing
     function selectIndexFromRandom(uint256 rnd) public view returns (uint256) {
@@ -42,9 +42,9 @@ contract SmetRewardFuzz is Test {
         weights[2] = c;
 
         Reward[] memory prizes = new Reward[](3);
-        prizes[0] = Reward({assetType: 1, token: address(0), idOrAmount: 0});
-        prizes[1] = Reward({assetType: 1, token: address(0), idOrAmount: 0});
-        prizes[2] = Reward({assetType: 1, token: address(0), idOrAmount: 0});
+        prizes[0] = Reward({assetType: 1, token: address(0), idOrAmount: 0, availableAfter: 0});
+        prizes[1] = Reward({assetType: 1, token: address(0), idOrAmount: 0, availableAfter: 0});
+        prizes[2] = Reward({assetType: 1, token: address(0), idOrAmount: 0, availableAfter: 0});
 
         TestSmetReward tr = new TestSmetReward(weights, prizes);
         uint256 idx = tr.selectIndexFromRandom(rnd);
@@ -60,7 +60,7 @@ contract SmetRewardFuzz is Test {
         uint32[] memory weights = new uint32[](1);
         weights[0] = 1;
         Reward[] memory prizes = new Reward[](1);
-        prizes[0] = Reward({assetType: 1, token: address(g), idOrAmount: 0});
+        prizes[0] = Reward({assetType: 1, token: address(g), idOrAmount: 0, availableAfter: 0});
 
         TestSmetReward tr = new TestSmetReward(weights, prizes);
 

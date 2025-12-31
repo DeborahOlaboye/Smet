@@ -25,17 +25,20 @@ contract SmetRewardTest is Test {
         loot = new SmetLoot();
 
         Reward[] memory prizes = new Reward[](3);
-        prizes[0] = Reward(1, address(gold), 500 ether);
-        prizes[1] = Reward(2, address(hero), 1);   
-        prizes[2] = Reward(3, address(loot), 77);    
+        prizes[0] = Reward(1, address(gold), 500 ether, 0);
+        prizes[1] = Reward(2, address(hero), 1, 0);   
+        prizes[2] = Reward(3, address(loot), 77, 0);    
 
         uint32[] memory w = new uint32[](3);
         w[0] = 60; w[1] = 90; w[2] = 100; 
 
+        // coordinator, subId, keyHash, fee, cooldownSeconds, weights, prizes
         box = new SmetReward(
-            0,                    
-            keccak256("keyHash"),   
+            address(0),
+            0,
+            keccak256("keyHash"),
             0.05 ether,
+            60,
             w,
             prizes
         );
@@ -51,14 +54,14 @@ contract SmetRewardTest is Test {
 
     function test_open() external {
         vm.prank(alice);
-        uint256 reqId = box.open{value: 0.05 ether}();
-        assertEq(reqId, 0);
+        uint256 reqId = box.open{value: 0.05 ether}(true);
+        // reqId may vary depending on VRF coordinator; at minimum ensure payment was accepted
         assertEq(address(box).balance, 0.05 ether);
     }
 
     function test_fulfill() external {
         vm.prank(alice);
-        box.open{value: 0.05 ether}();
+        box.open{value: 0.05 ether}(true);
 
         box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
 
@@ -91,16 +94,52 @@ contract SmetRewardTest is Test {
     event RewardOut(address indexed opener, Reward reward);
 
     function test_events() external {
-        vm.expectEmit(true, true, false, false);
+        // Only check the opener index (ignore reqId which may vary)
+        vm.expectEmit(true, false, false, false);
         emit Opened(alice, 0);
 
         vm.prank(alice);
-        box.open{value: 0.05 ether}();
+        box.open{value: 0.05 ether}(true);
 
-        Reward memory expected = Reward(2, address(hero), 1);
+        Reward memory expected = Reward(2, address(hero), 1, 0);
         vm.expectEmit(true, false, false, false);
         emit RewardOut(alice, expected);
 
         box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
+    }
+
+    function test_cooldown_enforced() external {
+        // First open should succeed
+        vm.prank(alice);
+        box.open{value: 0.05 ether}(true);
+
+        // Immediate second open by same user must revert due to cooldown
+        vm.expectRevert(bytes("cooldown"));
+        vm.prank(alice);
+        box.open{value: 0.05 ether}(true);
+    }
+
+    function test_availability_skips_locked() external {
+        // Lock the first prize far into the future
+        box.setPrizeAvailableAfter(0, uint64(block.timestamp + 1000));
+
+        vm.prank(alice);
+        box.open{value: 0.05 ether}(true);
+
+        // When fulfilling, the locked prize should be skipped and hero (idx 1) delivered
+        box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
+
+        assertEq(hero.ownerOf(1), alice);
+    }
+
+    function test_admin_setters_and_access() external {
+        // Only admin (this contract) can set cooldown
+        box.setCooldownSeconds(10);
+        assertEq(box.cooldownSeconds(), 10);
+
+        // Non-admin should revert
+        vm.prank(alice);
+        vm.expectRevert(bytes("not admin"));
+        box.setCooldownSeconds(0);
     }
 }

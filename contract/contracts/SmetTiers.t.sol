@@ -25,12 +25,12 @@ contract SmetTiersTest is Test {
 
         // Deploy a minimal SmetReward to test integration
         Reward[] memory prizes = new Reward[](1);
-        prizes[0] = Reward(1, address(gold), 100 ether);
+        prizes[0] = Reward(1, address(gold), 100 ether, 0);
         uint32[] memory w = new uint32[](1);
         w[0] = 100;
-        // the SmetReward constructor signature is (address _coordinator, uint256 _subId, bytes32 _keyHash, uint256 _fee, uint32[] memory _weights, Reward[] memory _prizes)
-        // In tests we can pass zeros for VRF parameters
-        SmetReward box = new SmetReward(address(0), 0, keccak256("keyHash"), 0, w, prizes);
+        // the SmetReward constructor signature is (address _coordinator, uint256 _subId, bytes32 _keyHash, uint256 _fee, uint256 _cooldownSeconds, uint32[] memory _weights, Reward[] memory _prizes)
+        // In tests we can pass zeros for VRF parameters and cooldown
+        SmetReward box = new SmetReward(address(0), 0, keccak256("keyHash"), 0, 0, w, prizes);
         box.setTiersContract(address(tiers));
 
         // store for later assertions
@@ -68,7 +68,7 @@ contract SmetTiersTest is Test {
         prizes[0] = Reward(1, address(gold), 100 ether);
         uint32[] memory w = new uint32[](1);
         w[0] = 100;
-        SmetReward box = new SmetReward(address(0), 0, keccak256("keyHash"), 0, w, prizes);
+        SmetReward box = new SmetReward(address(0), 0, keccak256("keyHash"), 0, 0, w, prizes);
         box.setTiersContract(address(tiers));
 
         // alice has Gold tier
