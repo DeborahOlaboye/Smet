@@ -32,3 +32,14 @@ contract SmetGold is ERC20 {
         
         return result;
     }
+    
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        address owner = _msgSender();
+        
+        bool result = super.approve(spender, amount);
+        
+        // Formal verification: Allowance correctness
+        assert(allowance(owner, spender) == amount);
+        
+        return result;
+    }
