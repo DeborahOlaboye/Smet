@@ -8,6 +8,14 @@ contract SmetLoot is ERC1155 {
     constructor() ERC1155("https://loot.example/{id}.json") {}
 
     function mint(address to, uint256 id, uint256 amount) external {
+        uint256 previousBalance = balanceOf(to, id);
+        uint256 previousTotalSupply = totalSupplyById[id];
+        
         _mint(to, id, amount, "");
+        totalSupplyById[id] += amount;
+        
+        // Formal verification: Mint correctness
+        assert(balanceOf(to, id) == previousBalance + amount);
+        assert(totalSupplyById[id] == previousTotalSupply + amount);
     }
 }
