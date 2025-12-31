@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
@@ -18,7 +19,8 @@ struct Reward {
 contract SmetReward is 
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
-    IERC1155Receiver 
+    IERC1155Receiver,
+    Ownable
 {
     address public immutable VRF_COORD;
     bytes32 public immutable keyHash;
@@ -33,6 +35,16 @@ contract SmetReward is
     Reward[] public prizePool;
 
     mapping(uint256 => address) private waiting;
+    address public timelock;
+    
+    modifier onlyTimelock() {
+        require(msg.sender == timelock, "Only timelock");
+        _;
+    }
+    
+    event TimelockSet(address indexed timelock);
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
+    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords);
 
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
@@ -44,7 +56,7 @@ contract SmetReward is
         uint256 _fee,
         uint32[] memory _weights,
         Reward[] memory _prizes
-    ) VRFConsumerBaseV2Plus(_coordinator) {
+    ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         VRF_COORD = _coordinator;
         subId = _subId;
@@ -121,6 +133,30 @@ contract SmetReward is
     function refill(IERC20 token, uint256 amount) external {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
+    }
+    
+    function setTimelock(address _timelock) external onlyOwner {
+        timelock = _timelock;
+        emit TimelockSet(_timelock);
+    }
+    
+    function updateFee(uint256 newFee) external onlyTimelock {
+        uint256 oldFee = fee;
+        fee = newFee;
+        emit FeeUpdated(oldFee, newFee);
+    }
+    
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyTimelock {
+        requestConfirmations = _requestConfirmations;
+        callbackGasLimit = _callbackGasLimit;
+        numWords = _numWords;
+        emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords);
+    }
+    
+    function addPrize(Reward memory newReward, uint32 weight) external onlyTimelock {
+        prizePool.push(newReward);
+        uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
+        cdf.push(lastCdf + weight);
     }
 
     receive() external payable {}
