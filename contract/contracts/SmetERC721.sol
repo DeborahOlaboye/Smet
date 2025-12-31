@@ -11,6 +11,7 @@ contract SmetHero is ERC721, Pausable, Ownable {
     event ContractUnpaused(address indexed unpauser);
     event HeroMinted(address indexed to, uint256 indexed tokenId, address indexed minter);
     event HeroBurned(uint256 indexed tokenId, address indexed burner);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
 
     constructor() ERC721("SmetHero", "SHERO") Ownable(msg.sender) {}
     
@@ -34,6 +35,12 @@ contract SmetHero is ERC721, Pausable, Ownable {
         require(ownerOf(tokenId) == msg.sender, "Not token owner");
         _burn(tokenId);
         emit HeroBurned(tokenId, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
     }
     
     function transferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
