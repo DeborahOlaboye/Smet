@@ -22,4 +22,11 @@ contract SmetLoot is ERC1155 {
             safeTransferFrom(msg.sender, to[i], ids[i], amounts[i], "");
         }
     }
+
+    function batchApproval(address[] calldata operators, bool[] calldata approved) external {
+        require(operators.length == approved.length, "Length mismatch");
+        for (uint256 i = 0; i < operators.length; i++) {
+            setApprovalForAll(operators[i], approved[i]);
+        }
+    }
 }
