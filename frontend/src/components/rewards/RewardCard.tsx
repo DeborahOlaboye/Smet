@@ -13,11 +13,13 @@ interface RewardCardProps {
   isLoading?: boolean;
 }
 
+import { Tier } from '@/types/tier';
+
 function TierBadge() {
   const { tier, isLoading } = useTier();
   if (isLoading) return <span>…</span>;
+  if (!tier || tier < Tier.Bronze || tier > Tier.Platinum) return <span className="text-xs text-muted">None</span>;
   const names = ['None', 'Bronze', 'Silver', 'Gold', 'Platinum'];
-  if (!tier || tier < 1 || tier > 4) return <span className="text-xs text-muted">None</span>;
   return <span className="text-xs font-medium text-amber-600">{names[tier]}</span>;
 }
 
