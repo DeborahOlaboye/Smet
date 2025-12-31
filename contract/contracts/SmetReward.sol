@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
@@ -38,7 +38,7 @@ contract SmetReward is
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver,
-    AccessControl,
+    ReentrancyGuard,
     Pausable
 {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -78,32 +78,15 @@ contract SmetReward is
     /** @notice Optional tiers contract used to compute user tiers. */
     address public tiersContract;
 
-    /** @notice Admin address (deployer) with permission to configure optional modules. */
-    address public immutable admin;
-
-    /** @notice Maps VRF request ids to the address that opened the box. */
+    address public owner;
+    
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+    
     mapping(uint256 => address) private waiting;
-    mapping(address => uint256[]) private pendingRewards;
-
-    /** @notice Per-user timestamp of last open to enforce cooldowns. */
-    mapping(address => uint256) public lastOpened;
-
-    /** @notice Global cooldown (in seconds) between opens per user. */
-    uint256 public cooldownSeconds;
-
-    /** @notice Emitted when global cooldown is updated. */
-    event CooldownSet(uint256 seconds);
-
-    /** @notice Emitted when a prize's availability timestamp is set. */
-    event PrizeAvailabilitySet(uint256 indexed idx, uint64 availableAfter);
-
-    /**
-     * @notice Emitted when a box is opened and a VRF request is sent.
-     * @param opener The sender who opened the box.
-     * @param reqId The Chainlink VRF request id.
-     * @param poolId The pool id that was opened.
-     */
-    event Opened(address indexed opener, uint256 indexed reqId, uint256 indexed poolId);
+    mapping(uint256 => bool) private delivered;
 
     /**
      * @notice Emitted after a reward has been delivered.
@@ -111,8 +94,9 @@ contract SmetReward is
      * @param reward The Reward struct representing the delivered asset.
      */
     event RewardOut(address indexed opener, Reward reward);
-    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
-    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
+    event FeeUpdated(uint256 oldFee, uint256 newFee);
+    event PrizeAdded(uint256 indexed prizeIndex, Reward reward, uint32 weight);
+    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords);
 
     /** @notice Emitted when a pool's configuration changes. */
     event PoolUpdated(uint256 indexed poolId);
@@ -134,9 +118,7 @@ contract SmetReward is
     ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(ADMIN_ROLE, msg.sender);
-        _grantRole(OPERATOR_ROLE, msg.sender);
+        owner = msg.sender;
         
         VRF_COORD = _coordinator;
         subId = _subId;
@@ -173,7 +155,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
+    function open(bool payInNative) external payable nonReentrant whenNotPaused returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
         
         // Formal verification: Pre-conditions
@@ -226,10 +208,7 @@ contract SmetReward is
         // Map the VRF request id back to the original opener and pool
         address opener = waiting[reqId];
         require(opener != address(0), "no opener");
-        
-        // Formal verification: Pre-conditions
-        assert(opener != address(0));
-        assert(rnd.length > 0);
+        require(!delivered[reqId], "already delivered");
 
         // Sample from the CDF of the selected pool using the first random word.
         uint32[] storage cdf = cdfPerPool[pid];
@@ -253,7 +232,10 @@ contract SmetReward is
         assert(idx < prizePool.length);
 
         Reward memory rw = prizePool[idx];
-        uint256 previousRewardsDistributed = totalRewardsDistributed;
+        
+        // Mark as delivered and clear waiting before external calls
+        delivered[reqId] = true;
+        delete waiting[reqId];
         
         _deliver(opener, rw);
         totalRewardsDistributed++;
@@ -262,12 +244,6 @@ contract SmetReward is
         assert(totalRewardsDistributed == previousRewardsDistributed + 1);
         
         emit RewardOut(opener, rw);
-
-        // Clean up the mappings to free storage and prevent re-use
-        delete waiting[reqId];
-        
-        // Formal verification: Cleanup
-        assert(waiting[reqId] == address(0));
     }
 
     /**
@@ -297,7 +273,7 @@ contract SmetReward is
         emit RewardDistributed(to, rw.assetType, rw.token, rw.idOrAmount);
     }
 
-    function refill(IERC20 token, uint256 amount) external onlyRole(OPERATOR_ROLE) whenNotPaused {
+    function refill(IERC20 token, uint256 amount) external nonReentrant whenNotPaused {
         require(amount > 0, "!amount");
         
         // Formal verification: Pre-conditions
@@ -382,8 +358,45 @@ contract SmetReward is
         uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
         cdf.push(lastCdf + weight);
     }
+    
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner nonReentrant {
+        if (token == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            IERC20(token).transfer(msg.sender, amount);
+        }
+    }
+    
+    function updateFee(uint256 newFee) external onlyOwner nonReentrant {
+        uint256 oldFee = fee;
+        fee = newFee;
+        emit FeeUpdated(oldFee, newFee);
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+    
+    function updateVRFConfig(uint16 _requestConfirmations, uint32 _callbackGasLimit, uint32 _numWords) external onlyOwner nonReentrant {
+        requestConfirmations = _requestConfirmations;
+        callbackGasLimit = _callbackGasLimit;
+        numWords = _numWords;
+        emit VRFConfigUpdated(_requestConfirmations, _callbackGasLimit, _numWords);
+    }
+    
+    function addPrize(Reward memory newReward, uint32 weight) external onlyOwner nonReentrant {
+        uint256 prizeIndex = prizePool.length;
+        prizePool.push(newReward);
+        uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
+        cdf.push(lastCdf + weight);
+        emit PrizeAdded(prizeIndex, newReward, weight);
+    }
 
-    receive() external payable {}
+    receive() external payable nonReentrant {}
 
     /**
      * @notice Helper to query the number of prizes in the pool.
