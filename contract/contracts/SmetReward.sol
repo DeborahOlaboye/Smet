@@ -156,7 +156,17 @@ contract SmetReward is
 
     function refill(IERC20 token, uint256 amount) external {
         require(amount > 0, "!amount");
+        
+        // Formal verification: Pre-conditions
+        assert(amount > 0);
+        assert(address(token) != address(0));
+        
+        uint256 contractBalanceBefore = token.balanceOf(address(this));
+        
         token.transferFrom(msg.sender, address(this), amount);
+        
+        // Formal verification: Post-conditions
+        assert(token.balanceOf(address(this)) == contractBalanceBefore + amount);
     }
 
     receive() external payable {}
