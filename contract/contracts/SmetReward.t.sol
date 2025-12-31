@@ -220,6 +220,26 @@ contract SmetRewardTest is Test {
         vm.expectRevert(bytes("!fee"));
         box.open{value: 0.05 ether}(true, 1);
     }
+
+    function test_nonAdmin_setPoolPrizes_and_weights_revert() external {
+        Reward[] memory p2 = new Reward[](1);
+        p2[0] = Reward(1, address(gold), 1 ether, 0);
+        uint32[] memory w2 = new uint32[](1);
+        w2[0] = 100;
+
+        uint256 pid = box.addPool(0, w2, p2);
+        assertEq(pid, 1);
+
+        // Non-admin tries to set prizes
+        vm.prank(alice);
+        vm.expectRevert(bytes("not admin"));
+        box.setPoolPrizes(1, p2);
+
+        // Non-admin tries to set weights
+        vm.prank(alice);
+        vm.expectRevert(bytes("not admin"));
+        box.setPoolWeights(1, w2);
+    }
     function test_lastOpened_set() external {
         vm.prank(alice);
         box.open{value: 0.05 ether}(true);
