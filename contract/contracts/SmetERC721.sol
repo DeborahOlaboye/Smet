@@ -19,4 +19,11 @@ contract SmetHero is ERC721 {
             _safeMint(recipients[i], ids[i]);
         }
     }
+
+    function batchTransfer(address[] calldata to, uint256[] calldata tokenIds) external {
+        require(to.length == tokenIds.length, "Length mismatch");
+        for (uint256 i = 0; i < to.length; i++) {
+            safeTransferFrom(msg.sender, to[i], tokenIds[i]);
+        }
+    }
 }
