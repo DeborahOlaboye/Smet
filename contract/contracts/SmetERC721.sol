@@ -9,6 +9,8 @@ contract SmetHero is ERC721, Pausable, Ownable {
     
     event ContractPaused(address indexed pauser, string reason);
     event ContractUnpaused(address indexed unpauser);
+    event HeroMinted(address indexed to, uint256 indexed tokenId, address indexed minter);
+    event HeroBurned(uint256 indexed tokenId, address indexed burner);
 
     constructor() ERC721("SmetHero", "SHERO") Ownable(msg.sender) {}
     
@@ -25,6 +27,7 @@ contract SmetHero is ERC721, Pausable, Ownable {
     function mint(address to) external whenNotPaused returns (uint256 id) {
         id = nextId++;
         _safeMint(to, id);
+        emit HeroMinted(to, id, msg.sender);
     }
     
     function transferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
