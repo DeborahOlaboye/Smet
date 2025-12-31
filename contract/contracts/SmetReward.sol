@@ -45,6 +45,7 @@ contract SmetReward is
     event RewardDistributed(address indexed recipient, uint8 assetType, address indexed token, uint256 idOrAmount);
     event PrizePoolUpdated(uint256 indexed prizeIndex, uint8 assetType, address indexed token, uint256 idOrAmount);
     event FeeUpdated(uint256 oldFee, uint256 newFee, address indexed updater);
+    event TokenRefilled(address indexed token, uint256 amount, address indexed refiller);
 
     constructor(
         address _coordinator,
@@ -142,6 +143,7 @@ contract SmetReward is
     function refill(IERC20 token, uint256 amount) external whenNotPaused {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
+        emit TokenRefilled(address(token), amount, msg.sender);
     }
 
     receive() external payable {}
