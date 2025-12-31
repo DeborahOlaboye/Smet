@@ -44,6 +44,12 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 - Governance-controlled upgrade process
 - State and address preservation
 
+📊 **Event Monitoring**: Real-time activity tracking
+- Comprehensive event monitoring across all contracts
+- Real-time alerts and notifications
+- Web dashboard for analytics and insights
+- See [Event Monitoring Documentation](./EVENT_MONITORING_DOCUMENTATION.md)
+
 ## Deployed Addresses
 
 ### Current Contracts
@@ -54,6 +60,23 @@ A blockchain-based gaming reward system that uses Chainlink VRF for provably fai
 
 ### Upgradeable Versions
 *Deploy using:* `npx hardhat run scripts/deploy-upgradeable.ts --network <network>`
+
+## Monitoring
+
+### Start Monitoring
+```bash
+# Real-time monitoring
+npx ts-node contract/scripts/monitor-cli.ts start
+
+# Web dashboard
+npx ts-node contract/scripts/monitor-cli.ts dashboard
+```
+
+### Docker Deployment
+```bash
+# Start monitoring stack
+docker-compose -f contract/docker-compose.monitor.yml up -d
+```
 
 ## Verification
 
