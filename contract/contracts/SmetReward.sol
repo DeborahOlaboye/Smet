@@ -102,10 +102,12 @@ contract SmetReward is
         }
 
         Reward memory rw = prizePool[idx];
+        
+        // Clear the waiting mapping before external calls to prevent reentrancy
+        delete waiting[reqId];
+        
         _deliver(opener, rw);
         emit RewardOut(opener, rw);
-
-        delete waiting[reqId];
     }
 
     function _deliver(address to, Reward memory rw) private {
