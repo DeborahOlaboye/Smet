@@ -111,6 +111,7 @@ contract SmetReward is
             waiting[reqIds[i]] = msg.sender;
             emit Opened(msg.sender, reqIds[i]);
         }
+        emit BatchOperationCompleted(msg.sender, "batchOpen", count);
     }
 
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
@@ -155,6 +156,7 @@ contract SmetReward is
             require(amounts[i] > 0, "!amount");
             tokens[i].transferFrom(msg.sender, address(this), amounts[i]);
         }
+        emit BatchOperationCompleted(msg.sender, "batchRefill", tokens.length);
     }
 
     receive() external payable {}
