@@ -66,6 +66,12 @@ contract SmetReward is
                 idOrAmount: r.idOrAmount
             }));
         }
+        
+        // Formal verification: Constructor invariants
+        assert(cdf.length == _weights.length);
+        assert(prizePool.length == _prizes.length);
+        assert(fee == _fee);
+        assert(totalRewardsDistributed == 0);
     }
 
     function open(bool payInNative) external payable returns (uint256 reqId) {
