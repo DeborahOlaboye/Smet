@@ -30,6 +30,12 @@ contract SmetHero is ERC721, Pausable, Ownable {
         emit HeroMinted(to, id, msg.sender);
     }
     
+    function burn(uint256 tokenId) external whenNotPaused {
+        require(ownerOf(tokenId) == msg.sender, "Not token owner");
+        _burn(tokenId);
+        emit HeroBurned(tokenId, msg.sender);
+    }
+    
     function transferFrom(address from, address to, uint256 tokenId) public override whenNotPaused {
         super.transferFrom(from, to, tokenId);
     }
