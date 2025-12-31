@@ -145,7 +145,7 @@ contract SmetReward is
         }
     }
 
-    receive() external payable {}
+    receive() external payable nonReentrant {}
 
     // ===== ERC721 & ERC1155 Receiver Support =====
 
