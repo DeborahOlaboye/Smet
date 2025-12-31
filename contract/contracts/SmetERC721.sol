@@ -14,6 +14,7 @@ contract SmetHero is ERC721, CircuitBreaker {
 
     function mint(address to) external circuitBreakerCheck(this.mint.selector) returns (uint256 id) {
         id = nextId++;
+        totalMinted++;
         _safeMint(to, id);
         
         transactionHistory.recordTransaction(

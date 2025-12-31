@@ -16,7 +16,7 @@ export function RewardsGrid({
   isLoading, 
   activeRewardId 
 }: RewardsGridProps) {
-  if (rewards.length === 0) {
+  if (rewards.length === 0 && !isLoading) {
     return (
       <div className="text-center py-8 sm:py-12">
         <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
@@ -29,6 +29,8 @@ export function RewardsGrid({
       </div>
     );
   }
+
+  const placeholders = new Array(8).fill(0);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">

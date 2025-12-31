@@ -2,11 +2,25 @@
 
 import { Reward, rewardTypes } from '@/types/reward';
 import Image from 'next/image';
+import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { Button } from '@/components/ui/button';
+import { useTier } from '@/lib/web3/useTier';
 
 interface RewardCardProps {
   reward: Reward;
   onOpen?: (rewardId: string) => void;
   isLoading?: boolean;
+}
+
+import { Tier } from '@/types/tier';
+
+function TierBadge() {
+  const { tier, isLoading } = useTier();
+  if (isLoading) return <span>…</span>;
+  if (!tier || tier < Tier.Bronze || tier > Tier.Platinum) return <span className="text-xs text-muted">None</span>;
+  const names = ['None', 'Bronze', 'Silver', 'Gold', 'Platinum'];
+  return <span className="text-xs font-medium text-amber-600">{names[tier]}</span>;
 }
 
 export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProps) {
@@ -31,6 +45,10 @@ export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProp
           <span className={rewardType.color}>
             {rewardType.name}
           </span>
+          <span className="text-[10px] text-muted">
+            {/* Show tier if connected */}
+            <TierBadge />
+          </span>
         </div>
       </div>
       
@@ -51,7 +69,7 @@ export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProp
             />
           </div>
           
-          <button
+          <Button
             onClick={() => onOpen?.(reward.id)}
             disabled={isLoading || reward.remaining === 0}
             className={`w-full mt-2 py-2.5 sm:py-2 px-4 rounded-md font-medium text-white text-sm sm:text-base btn-touch ${
@@ -71,6 +89,6 @@ export function RewardCard({ reward, onOpen, isLoading = false }: RewardCardProp
           </button>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }
