@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
@@ -18,7 +20,9 @@ struct Reward {
 contract SmetReward is 
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
-    IERC1155Receiver 
+    IERC1155Receiver,
+    Pausable,
+    Ownable
 {
     address public immutable VRF_COORD;
     bytes32 public immutable keyHash;
@@ -33,6 +37,10 @@ contract SmetReward is
     Reward[] public prizePool;
 
     mapping(uint256 => address) private waiting;
+    address public emergencyRecovery;
+    
+    event EmergencyRecoverySet(address indexed recovery);
+    event EmergencyWithdrawal(address indexed token, uint256 amount, address indexed recipient);
 
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
@@ -44,7 +52,7 @@ contract SmetReward is
         uint256 _fee,
         uint32[] memory _weights,
         Reward[] memory _prizes
-    ) VRFConsumerBaseV2Plus(_coordinator) {
+    ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         VRF_COORD = _coordinator;
         subId = _subId;
@@ -67,7 +75,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable returns (uint256 reqId) {
+    function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
@@ -118,9 +126,34 @@ contract SmetReward is
         }
     }
 
-    function refill(IERC20 token, uint256 amount) external {
+    function refill(IERC20 token, uint256 amount) external whenNotPaused {
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+    
+    function setEmergencyRecovery(address _emergencyRecovery) external onlyOwner {
+        emergencyRecovery = _emergencyRecovery;
+        emit EmergencyRecoverySet(_emergencyRecovery);
+    }
+    
+    function emergencyWithdraw(address token, uint256 amount) external {
+        require(msg.sender == owner() || msg.sender == emergencyRecovery, "Unauthorized");
+        
+        if (token == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            IERC20(token).transfer(msg.sender, amount);
+        }
+        
+        emit EmergencyWithdrawal(token, amount, msg.sender);
     }
 
     receive() external payable {}
