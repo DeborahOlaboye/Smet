@@ -6,4 +6,11 @@ contract SmetGold is ERC20 {
     constructor() ERC20("SmetGold", "SGOLD") {
         _mint(msg.sender, 10000000 ether);
     }
+
+    function batchTransfer(address[] calldata recipients, uint256[] calldata amounts) external {
+        require(recipients.length == amounts.length, "Length mismatch");
+        for (uint256 i = 0; i < recipients.length; i++) {
+            transfer(recipients[i], amounts[i]);
+        }
+    }
 }
