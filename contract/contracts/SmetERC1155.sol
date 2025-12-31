@@ -28,6 +28,17 @@ contract SmetLoot is ERC1155, Pausable, Ownable {
         emit LootMinted(to, id, amount, msg.sender);
     }
     
+    function burn(address from, uint256 id, uint256 amount) external whenNotPaused {
+        require(from == msg.sender || isApprovedForAll(from, msg.sender), "Not approved");
+        _burn(from, id, amount);
+        emit LootBurned(from, id, amount, msg.sender);
+    }
+    
+    function setURI(string memory newURI) external onlyOwner {
+        _setURI(newURI);
+        emit URIUpdated(newURI, msg.sender);
+    }
+    
     function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
         super.safeTransferFrom(from, to, id, amount, data);
     }
