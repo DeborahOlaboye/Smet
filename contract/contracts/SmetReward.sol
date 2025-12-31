@@ -126,6 +126,18 @@ contract SmetReward is
         require(amount > 0, "!amount");
         token.transferFrom(msg.sender, address(this), amount);
     }
+    
+    function emergencyWithdraw(address token, uint256 amount) external nonReentrant {
+        // Add basic access control - only contract deployer can withdraw
+        // This should be replaced with proper access control in production
+        require(msg.sender == address(0), "Unauthorized"); // Placeholder - needs proper access control
+        
+        if (token == address(0)) {
+            payable(msg.sender).transfer(amount);
+        } else {
+            IERC20(token).transfer(msg.sender, amount);
+        }
+    }
 
     receive() external payable {}
 
