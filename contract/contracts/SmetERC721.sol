@@ -13,7 +13,17 @@ contract SmetHero is ERC721 {
     }
 
     function mint(address to) external returns (uint256 id) {
+        uint256 previousNextId = nextId;
+        uint256 previousTotalMinted = totalMinted;
+        
         id = nextId++;
+        totalMinted++;
         _safeMint(to, id);
+        
+        // Formal verification: Mint correctness
+        assert(id == previousNextId);
+        assert(nextId == previousNextId + 1);
+        assert(totalMinted == previousTotalMinted + 1);
+        assert(ownerOf(id) == to);
     }
 }
