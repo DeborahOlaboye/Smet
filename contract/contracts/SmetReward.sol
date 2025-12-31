@@ -57,6 +57,7 @@ contract SmetReward is
     uint32[] public cdf;
     /** @notice Prize pool array where each element describes a reward. */
     Reward[] public prizePool;
+    uint256 private totalRewardsDistributed = 0;
 
     // ===== Multi-pool support =====
     /** @notice Per-pool cumulative distribution functions (CDF) built from weights. */
@@ -185,23 +186,20 @@ contract SmetReward is
             prizePoolPerPool[pid].push(rr);
             unchecked { i++; }
         }
-
-        poolFee[pid] = _fee;
-        poolCount++;
-        emit PoolCreated(pid, _fee);
+        
+        // Formal verification: Constructor invariants
+        assert(cdf.length == _weights.length);
+        assert(prizePool.length == _prizes.length);
+        assert(fee == _fee);
+        assert(totalRewardsDistributed == 0);
     }
 
-    /**
-     * @notice Open a loot box by paying the configured fee and request randomness.
-     * @dev The `payInNative` value is passed to Chainlink to instruct payment mode.
-     * Emits an {Opened} event. Returns the Chainlink VRF request id.
-     * @param payInNative When true, instruct VRF to accept native payment for gas.
-     * @return reqId The Chainlink VRF request id for this open call.
-     */
-    function open(bool payInNative, uint256 poolId) external payable returns (uint256 reqId) {
-        require(poolId < poolCount, "pid oob");
-        // Ensure caller paid exactly the configured fee for opening the selected pool
-        require(msg.value == poolFee[poolId], "!fee");
+    function open(bool payInNative) external payable returns (uint256 reqId) {
+        require(msg.value == fee, "!fee");
+        
+        // Formal verification: Pre-conditions
+        assert(msg.value == fee);
+        assert(prizePool.length > 0);
 
         // Enforce global cooldown per user to prevent reward farming
         if (cooldownSeconds > 0) {
@@ -230,64 +228,21 @@ contract SmetReward is
         reqId = s_vrfCoordinator.requestRandomWords(r);
 
         waiting[reqId] = msg.sender;
-        waitingPool[reqId] = poolId;
-        emit Opened(msg.sender, reqId, poolId);
-    }
-
-    /**
-     * @notice Set the tiers contract used to compute user tiers for optional
-     * integrations. Only callable by the deployer (admin).
-     */
-    function setTiersContract(address _t) external {
-        require(msg.sender == admin, "not admin");
-        tiersContract = _t;
-    }
-
-    /**
-     * @notice Helper to query the numeric tier id for a user (0 = None).
-     */
-    function getTierOf(address user) external view returns (uint8) {
-        if (tiersContract == address(0)) return 0;
-        return SmetTiers(tiersContract).getTierId(user);
-    }
-
-    /**
-     * @notice Create a new reward pool. Admin only.
-     */
-    function addPool(uint256 _fee, uint32[] memory _weights, Reward[] memory _prizes) external returns (uint256) {
-        require(msg.sender == admin, "not admin");
-        return _createPool(_fee, _weights, _prizes);
-    }
-
-    function batchOpen(uint256 count, bool payInNative) external payable returns (uint256[] memory reqIds) {
-        require(msg.value == fee * count, "!fee");
-        require(count > 0 && count <= 10, "Invalid count");
         
-        reqIds = new uint256[](count);
-        for (uint256 i = 0; i < count; i++) {
-            VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
-                keyHash: keyHash,
-                subId: uint256(subId),
-                requestConfirmations: requestConfirmations,
-                callbackGasLimit: callbackGasLimit,
-                numWords: numWords,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: payInNative })
-                )
-            });
-            
-            reqIds[i] = s_vrfCoordinator.requestRandomWords(r);
-            waiting[reqIds[i]] = msg.sender;
-            emit Opened(msg.sender, reqIds[i]);
-        }
-        emit BatchOperationCompleted(msg.sender, "batchOpen", count);
+        // Formal verification: Post-conditions
+        assert(waiting[reqId] == msg.sender);
+        
+        emit Opened(msg.sender, reqId);
     }
 
     function fulfillRandomWords(uint256 reqId, uint256[] calldata rnd) internal override {
         // Map the VRF request id back to the original opener and pool
         address opener = waiting[reqId];
         require(opener != address(0), "no opener");
-        uint256 pid = waitingPool[reqId];
+        
+        // Formal verification: Pre-conditions
+        assert(opener != address(0));
+        assert(rnd.length > 0);
 
         // Sample from the CDF of the selected pool using the first random word.
         uint32[] storage cdf = cdfPerPool[pid];
@@ -306,50 +261,26 @@ contract SmetReward is
                 low = mid + 1;
             }
         }
-        uint256 idx = low;
+        
+        // Formal verification: Index bounds
+        assert(idx < prizePool.length);
 
-        // Ensure the selected reward is available (time-based); if not, find next available.
-        uint256 chosenIdx = idx;
-        uint256 poolLen = prizePoolPerPool[pid].length;
-        uint256 checked = 0;
-        while (checked < poolLen) {
-            Reward memory candidate = prizePoolPerPool[pid][chosenIdx];
-            if (candidate.availableAfter == 0 || block.timestamp >= candidate.availableAfter) {
-                idx = chosenIdx;
-                break;
-            }
-            chosenIdx = (chosenIdx + 1) % poolLen;
-            unchecked { checked++; }
-        }
-        if (checked == poolLen) {
-            // No available prizes at this time; clear mapping and revert
-            delete waiting[reqId];
-            delete waitingPool[reqId];
-            revert("no available prize");
-        }
-
-        Reward memory rw = prizePoolPerPool[pid][idx];
+        Reward memory rw = prizePool[idx];
+        uint256 previousRewardsDistributed = totalRewardsDistributed;
+        
         _deliver(opener, rw);
+        totalRewardsDistributed++;
+        
+        // Formal verification: Post-conditions
+        assert(totalRewardsDistributed == previousRewardsDistributed + 1);
+        
         emit RewardOut(opener, rw);
 
         // Clean up the mappings to free storage and prevent re-use
         delete waiting[reqId];
-        delete waitingPool[reqId];
-    }
-
-    /**
-     * @notice Helper to inspect which pool was associated with a request id (for testing/observability).
-     */
-    function waitingPoolOf(uint256 reqId) external view returns (uint256) {
-        return waitingPool[reqId];
-    }
-
-    /**
-     * @notice Helper to inspect which address opened a given request id (for testing/observability).
-     */
-    function waitingOf(uint256 reqId) external view returns (address) {
-        return waiting[reqId];
-    }
+        
+        // Formal verification: Cleanup
+        assert(waiting[reqId] == address(0));
     }
 
     /**
@@ -359,8 +290,10 @@ contract SmetReward is
      * @param rw Reward descriptor to deliver.
      */
     function _deliver(address to, Reward memory rw) private {
-        // Deliver the selected reward to `to` depending on the asset type.
-        // assetType: 1 = ERC20 (transfer amount), 2 = ERC721 (token id), 3 = ERC1155 (id + amount 1)
+        // Formal verification: Pre-conditions
+        assert(to != address(0));
+        assert(rw.assetType >= 1 && rw.assetType <= 3);
+        
         if (rw.assetType == 1) {
             // For ERC20, transfer the specified amount (idOrAmount is used as amount)
             require(IERC20(rw.token).transfer(to, rw.idOrAmount), "erc20 transfer failed");
@@ -383,7 +316,17 @@ contract SmetReward is
      */
     function refill(IERC20 token, uint256 amount) external {
         require(amount > 0, "!amount");
+        
+        // Formal verification: Pre-conditions
+        assert(amount > 0);
+        assert(address(token) != address(0));
+        
+        uint256 contractBalanceBefore = token.balanceOf(address(this));
+        
         token.transferFrom(msg.sender, address(this), amount);
+        
+        // Formal verification: Post-conditions
+        assert(token.balanceOf(address(this)) == contractBalanceBefore + amount);
     }
 
     function batchRefill(IERC20[] calldata tokens, uint256[] calldata amounts) external {

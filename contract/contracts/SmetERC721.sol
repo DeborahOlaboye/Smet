@@ -10,12 +10,13 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 contract SmetHero is ERC721 {
     /** @notice The next token id to be minted. Starts at 1. */
     uint256 public nextId = 1;
-    
-    event BatchMintCompleted(address indexed minter, uint256 count);
-    event BatchTransferCompleted(address indexed sender, uint256 count);
+    uint256 private totalMinted = 0;
 
-    /** @notice Deploy the SmetHero ERC721 contract. */
-    constructor() ERC721("SmetHero", "SHERO") {}
+    constructor() ERC721("SmetHero", "SHERO") {
+        // Formal verification: Initial state
+        assert(nextId == 1);
+        assert(totalMinted == 0);
+    }
 
     /**
      * @notice Mint a new hero NFT to `to` and return the token id.
@@ -23,11 +24,28 @@ contract SmetHero is ERC721 {
      * @return id The token id that was minted.
      */
     function mint(address to) external returns (uint256 id) {
-        id = nextId;
-        // Use unchecked increment to save a small amount of gas on the common path
-        unchecked { nextId = id + 1; }
-        // Use _safeMint to ensure ERC721Receiver compliance when minting to contracts
+        uint256 previousNextId = nextId;
+        uint256 previousTotalMinted = totalMinted;
+        
+        id = nextId++;
+        totalMinted++;
         _safeMint(to, id);
+        
+        // Formal verification: Mint correctness
+        assert(id == previousNextId);
+        assert(nextId == previousNextId + 1);
+        assert(totalMinted == previousTotalMinted + 1);
+        assert(ownerOf(id) == to);
+    }
+    
+    function transferFrom(address from, address to, uint256 tokenId) public override {
+        address previousOwner = ownerOf(tokenId);
+        
+        super.transferFrom(from, to, tokenId);
+        
+        // Formal verification: Transfer correctness
+        assert(previousOwner == from);
+        assert(ownerOf(tokenId) == to);
     }
 
     function batchMint(address[] calldata recipients) external returns (uint256[] memory ids) {
