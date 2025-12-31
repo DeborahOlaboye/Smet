@@ -175,4 +175,8 @@ contract SmetRewardTest is Test {
         box.open{value: 0.05 ether}(true);
         assertTrue(box.lastOpened(alice) > 0);
     }
+
+    function test_prizePoolLength() external {
+        assertEq(box.prizePoolLength(), 3);
+    }
 }
