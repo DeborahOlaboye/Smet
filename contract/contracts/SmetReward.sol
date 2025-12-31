@@ -167,6 +167,12 @@ contract SmetReward is
         callbackGasLimit = _callbackGasLimit;
         numWords = _numWords;
     }
+    
+    function addPrize(Reward memory newReward, uint32 weight) external onlyOwner nonReentrant {
+        prizePool.push(newReward);
+        uint32 lastCdf = cdf.length > 0 ? cdf[cdf.length - 1] : 0;
+        cdf.push(lastCdf + weight);
+    }
 
     receive() external payable nonReentrant {}
 
