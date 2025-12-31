@@ -9,16 +9,17 @@ contract TestSmetReward is SmetReward {
     constructor(uint32[] memory weights, Reward[] memory prizes)
         SmetReward(address(0), 0, bytes32(0), 0, 0, weights, prizes) {}
 
-    /// @notice Expose the selection logic used by fulfillRandomWords for testing
+    /// @notice Expose the selection logic used by fulfillRandomWords for testing on pool 0
     function selectIndexFromRandom(uint256 rnd) public view returns (uint256) {
-        uint256 total = cdf[cdf.length - 1];
+        uint32[] storage localCdf = cdfPerPool[0];
+        uint256 total = localCdf[localCdf.length - 1];
         uint256 r = rnd % total;
 
         uint256 low = 0;
-        uint256 high = cdf.length - 1;
+        uint256 high = localCdf.length - 1;
         while (low < high) {
             uint256 mid = (low + high) >> 1;
-            if (r < cdf[mid]) {
+            if (r < localCdf[mid]) {
                 high = mid;
             } else {
                 low = mid + 1;
@@ -49,6 +50,31 @@ contract SmetRewardFuzz is Test {
         TestSmetReward tr = new TestSmetReward(weights, prizes);
         uint256 idx = tr.selectIndexFromRandom(rnd);
         assertLt(idx, 3);
+    }
+
+    /// @notice Sanity check that selection returns valid index for varying pool sizes
+    function test_selectIndex_bounds_pool(uint256 rnd, uint32 w1, uint32 w2, uint32 w3, uint32 w4) public {
+        // Ensure non-zero weights and reasonable sizes
+        uint32 a = (w1 % 100) + 1;
+        uint32 b = (w2 % 100) + 1;
+        uint32 c = (w3 % 100) + 1;
+        uint32 d = (w4 % 100) + 1;
+
+        uint32[] memory weights = new uint32[](4);
+        weights[0] = a;
+        weights[1] = b;
+        weights[2] = c;
+        weights[3] = d;
+
+        Reward[] memory prizes = new Reward[](4);
+        prizes[0] = Reward({assetType: 1, token: address(0), idOrAmount: 0, availableAfter: 0});
+        prizes[1] = Reward({assetType: 1, token: address(0), idOrAmount: 0, availableAfter: 0});
+        prizes[2] = Reward({assetType: 1, token: address(0), idOrAmount: 0, availableAfter: 0});
+        prizes[3] = Reward({assetType: 1, token: address(0), idOrAmount: 0, availableAfter: 0});
+
+        TestSmetReward tr = new TestSmetReward(weights, prizes);
+        uint256 idx = tr.selectIndexFromRandom(rnd);
+        assertLt(idx, 4);
     }
 
     /// @notice Refill increases the ERC20 token balance held by the contract
