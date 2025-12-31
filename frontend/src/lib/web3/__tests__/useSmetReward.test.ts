@@ -28,4 +28,13 @@ describe('useSmetReward', () => {
     const lastCall = wagmi.usePrepareContractWrite.mock.calls[0][0];
     expect(lastCall.args).toEqual([false, 1]);
   });
+
+  it('defaults poolId to 0 when not provided', () => {
+    const wagmi = require('wagmi');
+    wagmi.usePrepareContractWrite.mockClear();
+
+    renderHook(() => useSmetReward({ paymentInNative: true }));
+    const lastCall = wagmi.usePrepareContractWrite.mock.calls[0][0];
+    expect(lastCall.args).toEqual([true, 0]);
+  });
 });
