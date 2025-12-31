@@ -69,7 +69,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable returns (uint256 reqId) {
+    function open(bool payInNative) external payable nonReentrant returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
 
         VRFV2PlusClient.RandomWordsRequest memory r = VRFV2PlusClient.RandomWordsRequest({
