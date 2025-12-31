@@ -34,6 +34,13 @@ contract SmetReward is
     uint32[] public cdf;
     Reward[] public prizePool;
 
+    address public owner;
+    
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Not owner");
+        _;
+    }
+    
     mapping(uint256 => address) private waiting;
 
     event Opened(address indexed opener, uint256 indexed reqId);
@@ -48,6 +55,9 @@ contract SmetReward is
         Reward[] memory _prizes
     ) VRFConsumerBaseV2Plus(_coordinator) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
+        
+        owner = msg.sender;
+        
         VRF_COORD = _coordinator;
         subId = _subId;
         keyHash = _keyHash;
@@ -127,11 +137,7 @@ contract SmetReward is
         token.transferFrom(msg.sender, address(this), amount);
     }
     
-    function emergencyWithdraw(address token, uint256 amount) external nonReentrant {
-        // Add basic access control - only contract deployer can withdraw
-        // This should be replaced with proper access control in production
-        require(msg.sender == address(0), "Unauthorized"); // Placeholder - needs proper access control
-        
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner nonReentrant {
         if (token == address(0)) {
             payable(msg.sender).transfer(amount);
         } else {
