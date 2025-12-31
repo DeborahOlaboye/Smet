@@ -1,11 +1,38 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SmetLoot is ERC1155 {
-    constructor() ERC1155("https://loot.example/{id}.json") {}
+contract SmetLoot is ERC1155, Pausable, Ownable {
+    address public emergencyRecovery;
+    
+    event EmergencyRecoverySet(address indexed recovery);
+    
+    constructor() ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {}
 
-    function mint(address to, uint256 id, uint256 amount) external {
+    function mint(address to, uint256 id, uint256 amount) external whenNotPaused {
         _mint(to, id, amount, "");
+    }
+    
+    function pause() external onlyOwner {
+        _pause();
+    }
+    
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+    
+    function setEmergencyRecovery(address _emergencyRecovery) external onlyOwner {
+        emergencyRecovery = _emergencyRecovery;
+        emit EmergencyRecoverySet(_emergencyRecovery);
+    }
+    
+    function safeTransferFrom(address from, address to, uint256 id, uint256 amount, bytes memory data) public override whenNotPaused {
+        super.safeTransferFrom(from, to, id, amount, data);
+    }
+    
+    function safeBatchTransferFrom(address from, address to, uint256[] memory ids, uint256[] memory amounts, bytes memory data) public override whenNotPaused {
+        super.safeBatchTransferFrom(from, to, ids, amounts, data);
     }
 }
