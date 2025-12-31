@@ -34,4 +34,30 @@ contract SmetLoot is ERC1155 {
         InputValidator.validateAddress(operator);
         super.setApprovalForAll(operator, approved);
     }
+    
+    function batchMint(address[] calldata recipients, uint256[] calldata ids, uint256[] calldata amounts) external {
+        InputValidator.validateArrayLength(recipients.length);
+        InputValidator.validateArrayLengths(recipients.length, ids.length);
+        InputValidator.validateArrayLengths(ids.length, amounts.length);
+        for (uint256 i = 0; i < recipients.length; i++) {
+            InputValidator.validateAddress(recipients[i]);
+            InputValidator.validateAmount(amounts[i]);
+        }
+        for (uint256 i = 0; i < recipients.length; i++) {
+            _mint(recipients[i], ids[i], amounts[i], "");
+        }
+    }
+    
+    function batchTransfer(address[] calldata to, uint256[] calldata ids, uint256[] calldata amounts) external {
+        InputValidator.validateArrayLength(to.length);
+        InputValidator.validateArrayLengths(to.length, ids.length);
+        InputValidator.validateArrayLengths(ids.length, amounts.length);
+        for (uint256 i = 0; i < to.length; i++) {
+            InputValidator.validateAddress(to[i]);
+            InputValidator.validateAmount(amounts[i]);
+        }
+        for (uint256 i = 0; i < to.length; i++) {
+            safeTransferFrom(msg.sender, to[i], ids[i], amounts[i], "");
+        }
+    }
 }
