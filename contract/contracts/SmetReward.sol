@@ -42,6 +42,8 @@ contract SmetReward is
 
     event Opened(address indexed opener, uint256 indexed reqId);
     event RewardOut(address indexed opener, Reward reward);
+    event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender);
+    event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender);
 
     constructor(
         address _coordinator,
