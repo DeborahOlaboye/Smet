@@ -9,6 +9,7 @@ contract SmetGold is ERC20, Pausable, Ownable {
     event ContractUnpaused(address indexed unpauser);
     event TokensMinted(address indexed to, uint256 amount, address indexed minter);
     event TokensBurned(address indexed from, uint256 amount, address indexed burner);
+    event OwnershipTransferInitiated(address indexed previousOwner, address indexed newOwner);
     
     constructor() ERC20("SmetGold", "SGOLD") Ownable(msg.sender) {
         _mint(msg.sender, 10000000 ether);
@@ -45,4 +46,10 @@ contract SmetGold is ERC20, Pausable, Ownable {
     function burn(uint256 amount) external whenNotPaused {
         _burn(msg.sender, amount);
         emit TokensBurned(msg.sender, amount, msg.sender);
+    }
+    
+    function transferOwnership(address newOwner) public override onlyOwner {
+        address oldOwner = owner();
+        super.transferOwnership(newOwner);
+        emit OwnershipTransferInitiated(oldOwner, newOwner);
     }
