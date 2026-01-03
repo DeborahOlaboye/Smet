@@ -40,8 +40,12 @@ export function AdminSidebar() {
       {/* Mobile Overlay */}
       {isMobileMenuOpen && (
         <div 
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
+          onTouchStart={() => setIsMobileMenuOpen(false)}
+          role="button"
+          tabIndex={0}
+          aria-label="Close menu"
         />
       )}
 
