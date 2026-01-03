@@ -6,7 +6,7 @@ import { Home, Package, Settings, BarChart2, LogOut, Menu, X } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const navItems = [
   { name: 'Dashboard', href: '/admin', icon: Home },
@@ -19,6 +19,23 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const { isAdmin } = useAdminAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMenuOpen]);
+
+  // Close menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   if (!isAdmin) return null;
 
