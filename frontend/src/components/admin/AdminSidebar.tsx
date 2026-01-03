@@ -21,6 +21,8 @@ export function AdminSidebar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -47,6 +49,30 @@ export function AdminSidebar() {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [pathname]);
+
+  // Swipe gesture handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe && isMobileMenuOpen) {
+      setIsMobileMenuOpen(false);
+    }
+    if (isRightSwipe && !isMobileMenuOpen) {
+      setIsMobileMenuOpen(true);
+    }
+  };
 
   if (!isAdmin) return null;
 
@@ -88,6 +114,9 @@ export function AdminSidebar() {
         )}
         role="navigation"
         aria-label="Admin navigation"
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
       >
         <div className="flex h-16 items-center border-b px-4 sm:px-6 bg-gray-50">
           <Link 
