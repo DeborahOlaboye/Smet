@@ -6,7 +6,7 @@ import { Home, Package, Settings, BarChart2, LogOut, Menu, X } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const navItems = [
   { name: 'Dashboard', href: '/admin', icon: Home },
@@ -19,17 +19,28 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const { isAdmin } = useAdminAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && isMobileMenuOpen) {
         setIsMobileMenuOpen(false);
+        menuButtonRef.current?.focus();
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMenuOpen]);
+
+  // Focus management
+  useEffect(() => {
+    if (isMobileMenuOpen && sidebarRef.current) {
+      const firstFocusable = sidebarRef.current.querySelector('a, button');
+      (firstFocusable as HTMLElement)?.focus();
+    }
   }, [isMobileMenuOpen]);
 
   // Close menu on route change
@@ -44,11 +55,13 @@ export function AdminSidebar() {
       {/* Mobile Menu Button */}
       <div className="md:hidden fixed top-4 left-4 z-50 safe-area">
         <Button
+          ref={menuButtonRef}
           variant="outline"
           size="sm"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="btn-touch bg-white shadow-lg border-gray-200 hover:bg-gray-50"
           aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+          aria-expanded={isMobileMenuOpen}
         >
           {isMobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
@@ -67,10 +80,15 @@ export function AdminSidebar() {
       )}
 
       {/* Sidebar */}
-      <div className={cn(
-        "fixed md:relative inset-y-0 left-0 z-40 w-64 border-r bg-white shadow-xl md:shadow-none transform transition-transform duration-300 ease-in-out md:translate-x-0 flex flex-col safe-area",
-        isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-      )}>
+      <div 
+        ref={sidebarRef}
+        className={cn(
+          "fixed md:relative inset-y-0 left-0 z-40 w-64 border-r bg-white shadow-xl md:shadow-none transform transition-transform duration-300 ease-in-out md:translate-x-0 flex flex-col safe-area",
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+        role="navigation"
+        aria-label="Admin navigation"
+      >
         <div className="flex h-16 items-center border-b px-4 sm:px-6 bg-gray-50">
           <Link 
             href="/admin" 
