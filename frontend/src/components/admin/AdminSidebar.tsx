@@ -6,7 +6,7 @@ import { Home, Package, Settings, BarChart2, LogOut, Menu, X } from 'lucide-reac
 import { cn } from '@/lib/utils';
 import { Button } from '../ui/button';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
-import { useState, useEffect, useRef } from 'react';
+import { useMobileNavigation } from '@/hooks/useMobileNavigation';
 
 const navItems = [
   { name: 'Dashboard', href: '/admin', icon: Home },
@@ -18,70 +18,16 @@ const navItems = [
 export function AdminSidebar() {
   const pathname = usePathname();
   const { isAdmin } = useAdminAuth();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const sidebarRef = useRef<HTMLDivElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-
-  // Handle keyboard navigation
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isMobileMenuOpen) {
-        setIsMobileMenuOpen(false);
-        menuButtonRef.current?.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isMobileMenuOpen]);
-
-  // Focus management and body scroll lock
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      document.body.classList.add('mobile-menu-open');
-      if (sidebarRef.current) {
-        const firstFocusable = sidebarRef.current.querySelector('a, button');
-        (firstFocusable as HTMLElement)?.focus();
-      }
-    } else {
-      document.body.classList.remove('mobile-menu-open');
-    }
-
-    return () => {
-      document.body.classList.remove('mobile-menu-open');
-    };
-  }, [isMobileMenuOpen]);
-
-  // Close menu on route change
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [pathname]);
-
-  // Swipe gesture handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe && isMobileMenuOpen) {
-      setIsMobileMenuOpen(false);
-    }
-    if (isRightSwipe && !isMobileMenuOpen) {
-      setIsMobileMenuOpen(true);
-    }
-  };
+  const {
+    isMobileMenuOpen,
+    sidebarRef,
+    menuButtonRef,
+    toggleMobileMenu,
+    closeMobileMenu,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+  } = useMobileNavigation();
 
   if (!isAdmin) return null;
 
@@ -93,7 +39,7 @@ export function AdminSidebar() {
           ref={menuButtonRef}
           variant="outline"
           size="sm"
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onClick={toggleMobileMenu}
           className="btn-touch bg-white shadow-lg border-gray-200 hover:bg-gray-50"
           aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
           aria-expanded={isMobileMenuOpen}
@@ -106,8 +52,8 @@ export function AdminSidebar() {
       {isMobileMenuOpen && (
         <div 
           className="md:hidden fixed inset-0 bg-black/50 z-40 backdrop-blur-sm"
-          onClick={() => setIsMobileMenuOpen(false)}
-          onTouchStart={() => setIsMobileMenuOpen(false)}
+          onClick={closeMobileMenu}
+          onTouchStart={closeMobileMenu}
           role="button"
           tabIndex={0}
           aria-label="Close menu"
@@ -131,7 +77,7 @@ export function AdminSidebar() {
           <Link 
             href="/admin" 
             className="flex items-center gap-2 font-semibold text-gray-900 hover:text-blue-600 transition-colors"
-            onClick={() => setIsMobileMenuOpen(false)}
+            onClick={closeMobileMenu}
           >
             <Package className="h-6 w-6" />
             <span className="text-base">Admin Panel</span>
@@ -145,7 +91,7 @@ export function AdminSidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={closeMobileMenu}
                 className={cn(
                   'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 btn-touch',
                   isActive
@@ -164,7 +110,7 @@ export function AdminSidebar() {
           <Button 
             variant="outline" 
             className="w-full justify-start gap-3 btn-touch text-gray-600 hover:text-gray-900 hover:bg-white transition-colors"
-            onClick={() => setIsMobileMenuOpen(false)}
+            onClick={closeMobileMenu}
           >
             <LogOut className="h-5 w-5" />
             <span>Sign out</span>
