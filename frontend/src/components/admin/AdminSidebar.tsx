@@ -87,10 +87,14 @@ export function AdminSidebar() {
           })}
         </nav>
         
-        <div className="border-t p-4">
-          <Button variant="outline" className="w-full justify-start gap-2 btn-touch">
-            <LogOut className="h-4 w-4" />
-            Sign out
+        <div className="border-t p-4 bg-gray-50">
+          <Button 
+            variant="outline" 
+            className="w-full justify-start gap-3 btn-touch text-gray-600 hover:text-gray-900 hover:bg-white transition-colors"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <LogOut className="h-5 w-5" />
+            <span>Sign out</span>
           </Button>
         </div>
         
