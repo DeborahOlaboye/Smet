@@ -54,10 +54,14 @@ export function AdminSidebar() {
         "fixed md:relative inset-y-0 left-0 z-40 w-64 border-r bg-white shadow-xl md:shadow-none transform transition-transform duration-300 ease-in-out md:translate-x-0 flex flex-col safe-area",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex h-14 sm:h-16 items-center border-b px-6">
-          <Link href="/admin" className="flex items-center gap-2 font-semibold">
-            <Package className="h-5 w-5 sm:h-6 sm:w-6" />
-            <span className="text-sm sm:text-base">Admin Panel</span>
+        <div className="flex h-16 items-center border-b px-4 sm:px-6 bg-gray-50">
+          <Link 
+            href="/admin" 
+            className="flex items-center gap-2 font-semibold text-gray-900 hover:text-blue-600 transition-colors"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <Package className="h-6 w-6" />
+            <span className="text-base">Admin Panel</span>
           </Link>
         </div>
         
