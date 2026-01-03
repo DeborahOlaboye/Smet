@@ -37,12 +37,21 @@ export function AdminSidebar() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isMobileMenuOpen]);
 
-  // Focus management
+  // Focus management and body scroll lock
   useEffect(() => {
-    if (isMobileMenuOpen && sidebarRef.current) {
-      const firstFocusable = sidebarRef.current.querySelector('a, button');
-      (firstFocusable as HTMLElement)?.focus();
+    if (isMobileMenuOpen) {
+      document.body.classList.add('mobile-menu-open');
+      if (sidebarRef.current) {
+        const firstFocusable = sidebarRef.current.querySelector('a, button');
+        (firstFocusable as HTMLElement)?.focus();
+      }
+    } else {
+      document.body.classList.remove('mobile-menu-open');
     }
+
+    return () => {
+      document.body.classList.remove('mobile-menu-open');
+    };
   }, [isMobileMenuOpen]);
 
   // Close menu on route change
