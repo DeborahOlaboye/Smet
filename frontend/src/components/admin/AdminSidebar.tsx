@@ -51,7 +51,7 @@ export function AdminSidebar() {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed md:relative inset-y-0 left-0 z-40 w-64 border-r bg-white transform transition-transform duration-200 ease-in-out md:translate-x-0 flex flex-col",
+        "fixed md:relative inset-y-0 left-0 z-40 w-64 border-r bg-white shadow-xl md:shadow-none transform transition-transform duration-300 ease-in-out md:translate-x-0 flex flex-col safe-area",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex h-14 sm:h-16 items-center border-b px-6">
