@@ -74,3 +74,28 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+
+/* Mobile navigation enhancements */
+.mobile-nav-overlay {
+  @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-40;
+}
+
+.mobile-nav-sidebar {
+  @apply fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out;
+}
+
+/* Prevent body scroll when mobile menu is open */
+.mobile-menu-open {
+  @apply overflow-hidden;
+}
+
+/* Enhanced touch targets for mobile */
+@media (max-width: 768px) {
+  .btn-touch {
+    @apply min-h-[48px] min-w-[48px] text-base;
+  }
+  
+  .nav-item {
+    @apply py-4 px-4 text-base;
+  }
+}
