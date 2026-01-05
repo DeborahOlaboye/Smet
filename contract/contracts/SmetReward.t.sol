@@ -488,4 +488,52 @@ contract SmetRewardTest is Test {
         string memory newLootUri = loot.uri(77);
         assertEq(newLootUri, "https://new-api.smet.com/loot/77.json");
     }
+    
+    // ===== GAS OPTIMIZATION AND PERFORMANCE TESTS =====
+    
+    function test_gasUsageForOpen() external {
+        uint256 gasBefore = gasleft();
+        
+        vm.prank(alice);
+        box.open{value: 0.05 ether}(false);
+        
+        uint256 gasUsed = gasBefore - gasleft();
+        // Ensure gas usage is reasonable (adjust threshold as needed)
+        assertTrue(gasUsed < 200000, "Open function uses too much gas");
+    }
+    
+    function test_gasUsageForFulfill() external {
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        uint256 gasBefore = gasleft();
+        
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId, fakeRandom);
+        
+        uint256 gasUsed = gasBefore - gasleft();
+        // Ensure gas usage is reasonable
+        assertTrue(gasUsed < 150000, "Fulfill function uses too much gas");
+    }
+    
+    function test_batchOperations() external {
+        vm.deal(alice, 10 ether);
+        
+        // Test multiple opens in sequence
+        uint256[] memory reqIds = new uint256[](5);
+        
+        for (uint i = 0; i < 5; i++) {
+            vm.prank(alice);
+            reqIds[i] = box.open{value: 0.05 ether}(false);
+        }
+        
+        // Verify all requests are unique
+        for (uint i = 0; i < 5; i++) {
+            for (uint j = i + 1; j < 5; j++) {
+                assertTrue(reqIds[i] != reqIds[j], "Request IDs should be unique");
+            }
+        }
+        
+        assertEq(address(box).balance, 0.25 ether);
+    }
 }
