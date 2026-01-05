@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import "forge-std/Test.sol";
 import "./SmetReward.sol";
 import "./SmetERC1155.sol";
 import "./SmetERC20.sol";
@@ -10,7 +11,7 @@ contract SmetRewardTest is Test {
     SmetGold    gold;
     SmetHero    hero;
     SmetLoot    loot;
-    SmetCapsule box;
+    SmetReward  box;
 
     address owner = address(this);
     address alice = makeAddr("alice");
@@ -21,8 +22,8 @@ contract SmetRewardTest is Test {
 
     function setUp() external {
         gold = new SmetGold();
-        hero = new SmetHero();
-        loot = new SmetLoot();
+        hero = new SmetHero("https://api.smet.com/heroes/");
+        loot = new SmetLoot("https://api.smet.com/loot/");
 
         Reward[] memory prizes = new Reward[](3);
         prizes[0] = Reward(1, address(gold), 500 ether);
@@ -33,8 +34,9 @@ contract SmetRewardTest is Test {
         w[0] = 60; w[1] = 90; w[2] = 100; 
 
         box = new SmetReward(
-            0,                    
-            keccak256("keyHash"),   
+            address(0x1234),      // Mock VRF coordinator
+            1,                    // Subscription ID
+            keccak256("keyHash"), // Key hash
             0.05 ether,
             w,
             prizes
@@ -51,16 +53,18 @@ contract SmetRewardTest is Test {
 
     function test_open() external {
         vm.prank(alice);
-        uint256 reqId = box.open{value: 0.05 ether}();
-        assertEq(reqId, 0);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        assertTrue(reqId > 0);
         assertEq(address(box).balance, 0.05 ether);
     }
 
     function test_fulfill() external {
         vm.prank(alice);
-        box.open{value: 0.05 ether}();
+        uint256 reqId = box.open{value: 0.05 ether}(false);
 
-        box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
+        // Mock the fulfillRandomWords call
+        vm.prank(address(0x1234)); // VRF coordinator
+        box.fulfillRandomWords(reqId, fakeRandom);
 
         assertEq(hero.ownerOf(1), alice);
     }
@@ -92,15 +96,16 @@ contract SmetRewardTest is Test {
 
     function test_events() external {
         vm.expectEmit(true, true, false, false);
-        emit Opened(alice, 0);
+        emit Opened(alice, 1); // First request ID should be 1
 
         vm.prank(alice);
-        box.open{value: 0.05 ether}();
+        uint256 reqId = box.open{value: 0.05 ether}(false);
 
         Reward memory expected = Reward(2, address(hero), 1);
         vm.expectEmit(true, false, false, false);
         emit RewardOut(alice, expected);
 
-        box.fulfillRandomWords(FAKE_REQ_ID, fakeRandom);
+        vm.prank(address(0x1234)); // VRF coordinator
+        box.fulfillRandomWords(reqId, fakeRandom);
     }
 }
