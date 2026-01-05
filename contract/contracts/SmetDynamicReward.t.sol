@@ -338,4 +338,100 @@ contract SmetDynamicRewardTest is Test {
         
         assertEq(hero.ownerOf(1), alice);
     }
+
+    // ===== EDGE CASE TESTS =====
+
+    function test_addRewardToEmptyPool() external {
+        // Remove all rewards first
+        box.removeReward(0);
+        assertEq(box.getRewardCount(), 0);
+        
+        // Add reward to empty pool
+        Reward memory newReward = Reward(1, address(gold), 500 ether);
+        box.addReward(newReward, 100);
+        
+        assertEq(box.getRewardCount(), 1);
+        uint32[] memory weights = box.getWeights();
+        assertEq(weights[0], 100);
+    }
+
+    function test_updateWeightsZeroWeight() external {
+        uint32[] memory newWeights = new uint32[](1);
+        newWeights[0] = 0;
+        
+        vm.expectRevert("!weight");
+        box.updateWeights(newWeights);
+    }
+
+    function test_batchOperationsEmptyArrays() external {
+        Reward[] memory emptyRewards = new Reward[](0);
+        uint32[] memory emptyWeights = new uint32[](0);
+        
+        vm.expectRevert("empty arrays");
+        box.addRewardsBatch(emptyRewards, emptyWeights);
+        
+        uint256[] memory emptyIndices = new uint256[](0);
+        vm.expectRevert("empty indices");
+        box.removeRewardsBatch(emptyIndices);
+    }
+
+    function test_setRewardStock() external {
+        box.setRewardStock(0, 2000 ether);
+        
+        Reward memory updated = box.getReward(0);
+        assertEq(updated.idOrAmount, 2000 ether);
+    }
+
+    function test_setRewardStockNonERC20() external {
+        box.addReward(Reward(2, address(hero), 1), 50);
+        
+        vm.expectRevert("only ERC20");
+        box.setRewardStock(1, 5);
+    }
+
+    function test_getRewardStockETH() external {
+        vm.deal(address(box), 5 ether);
+        
+        uint256 ethStock = box.getRewardStock(address(0), 0);
+        assertEq(ethStock, 5 ether);
+    }
+
+    function test_getRewardStockERC20() external {
+        uint256 goldStock = box.getRewardStock(address(gold), 0);
+        assertEq(goldStock, 10000 ether);
+    }
+
+    function test_getRewardStockERC1155() external {
+        uint256 lootStock = box.getRewardStock(address(loot), 77);
+        assertEq(lootStock, 100);
+    }
+
+    function test_multipleWeightUpdates() external {
+        box.addReward(Reward(2, address(hero), 1), 50);
+        box.addReward(Reward(3, address(loot), 77), 25);
+        
+        // First update
+        uint32[] memory weights1 = new uint32[](3);
+        weights1[0] = 60;
+        weights1[1] = 30;
+        weights1[2] = 10;
+        box.updateWeights(weights1);
+        
+        uint32[] memory cdf1 = box.getWeights();
+        assertEq(cdf1[0], 60);
+        assertEq(cdf1[1], 90);
+        assertEq(cdf1[2], 100);
+        
+        // Second update
+        uint32[] memory weights2 = new uint32[](3);
+        weights2[0] = 20;
+        weights2[1] = 30;
+        weights2[2] = 50;
+        box.updateWeights(weights2);
+        
+        uint32[] memory cdf2 = box.getWeights();
+        assertEq(cdf2[0], 20);
+        assertEq(cdf2[1], 50);
+        assertEq(cdf2[2], 100);
+    }
 }
