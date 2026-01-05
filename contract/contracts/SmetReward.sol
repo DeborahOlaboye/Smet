@@ -305,6 +305,42 @@ contract SmetReward is
         IERC1155(token).safeTransferFrom(address(this), owner(), tokenId, amount, "");
     }
 
+    // ===== ADVANCED REWARD MANAGEMENT =====
+
+    function setRewardStock(uint256 index, uint256 newStock) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        require(prizePool[index].assetType == 1, "only ERC20");
+        
+        prizePool[index].idOrAmount = newStock;
+        emit RewardUpdated(index, prizePool[index], 0);
+    }
+
+    function enableReward(uint256 index) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        // Implementation would require additional enabled/disabled state tracking
+    }
+
+    function disableReward(uint256 index) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        // Implementation would require additional enabled/disabled state tracking
+    }
+
+    function getRewardStock(address token, uint256 tokenId) external view returns (uint256) {
+        if (token == address(0)) return address(this).balance;
+        
+        // Try ERC20 first
+        try IERC20(token).balanceOf(address(this)) returns (uint256 balance) {
+            return balance;
+        } catch {
+            // Try ERC1155
+            try IERC1155(token).balanceOf(address(this), tokenId) returns (uint256 balance) {
+                return balance;
+            } catch {
+                return 0;
+            }
+        }
+    }
+
     receive() external payable {}
 
     // ===== ERC721 & ERC1155 Receiver Support =====
