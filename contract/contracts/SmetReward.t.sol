@@ -241,4 +241,76 @@ contract SmetRewardTest is Test {
         box.fulfillRandomWords(reqId2, erc1155Random);
         assertEq(loot.balanceOf(bob, 77), 1);
     }
+    
+    // ===== ACCESS CONTROL TESTS =====
+    
+    function test_onlyVRFCoordinatorCanFulfill() external {
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        // Random user cannot fulfill
+        vm.prank(alice);
+        vm.expectRevert();
+        box.fulfillRandomWords(reqId, fakeRandom);
+        
+        // Owner cannot fulfill
+        vm.prank(owner);
+        vm.expectRevert();
+        box.fulfillRandomWords(reqId, fakeRandom);
+        
+        // Only VRF coordinator can fulfill
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId, fakeRandom);
+    }
+    
+    function test_refillAccessControl() external {
+        // Anyone should be able to refill with ERC20 tokens
+        vm.prank(alice);
+        gold.transfer(alice, 1000 ether);
+        
+        vm.prank(alice);
+        gold.approve(address(box), 1000 ether);
+        
+        vm.prank(alice);
+        box.refill(gold, 1000 ether);
+        
+        // Verify tokens were transferred
+        assertEq(gold.balanceOf(address(box)), 10000 ether + 1000 ether);
+    }
+    
+    function test_heroMintAccessControl() external {
+        // Anyone should be able to mint heroes (no access control)
+        vm.prank(alice);
+        uint256 tokenId = hero.mint(alice);
+        assertEq(hero.ownerOf(tokenId), alice);
+    }
+    
+    function test_heroSetBaseURIAccessControl() external {
+        // Only owner can set base URI
+        vm.prank(alice);
+        vm.expectRevert();
+        hero.setBaseURI("https://new-uri.com/");
+        
+        // Owner can set base URI
+        vm.prank(owner);
+        hero.setBaseURI("https://new-uri.com/");
+    }
+    
+    function test_lootMintAccessControl() external {
+        // Anyone should be able to mint loot (no access control)
+        vm.prank(alice);
+        loot.mint(alice, 99, 50);
+        assertEq(loot.balanceOf(alice, 99), 50);
+    }
+    
+    function test_lootSetBaseURIAccessControl() external {
+        // Only owner can set base URI
+        vm.prank(alice);
+        vm.expectRevert();
+        loot.setBaseURI("https://new-loot-uri.com/");
+        
+        // Owner can set base URI
+        vm.prank(owner);
+        loot.setBaseURI("https://new-loot-uri.com/");
+    }
 }
