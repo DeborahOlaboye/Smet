@@ -128,4 +128,58 @@ contract SmetRewardTest is Test {
         vm.expectRevert("!fee");
         box.open{value: 0.1 ether}(false);
     }
+    
+    // ===== NO REWARDS LEFT TESTS =====
+    
+    function test_openWhenERC20RewardsExhausted() external {
+        // Drain all ERC20 tokens from contract
+        uint256 balance = gold.balanceOf(address(box));
+        vm.prank(address(box));
+        gold.transfer(owner, balance);
+        
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        // Should revert when trying to fulfill with ERC20 reward
+        uint256[] memory erc20Random = new uint256[](1);
+        erc20Random[0] = 30; // Should select ERC20 reward (index 0)
+        
+        vm.prank(address(0x1234));
+        vm.expectRevert();
+        box.fulfillRandomWords(reqId, erc20Random);
+    }
+    
+    function test_openWhenERC721RewardsExhausted() external {
+        // Transfer the hero NFT away
+        vm.prank(address(box));
+        hero.transferFrom(address(box), owner, 1);
+        
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        // Should revert when trying to fulfill with ERC721 reward
+        uint256[] memory erc721Random = new uint256[](1);
+        erc721Random[0] = 75; // Should select ERC721 reward (index 1)
+        
+        vm.prank(address(0x1234));
+        vm.expectRevert();
+        box.fulfillRandomWords(reqId, erc721Random);
+    }
+    
+    function test_openWhenERC1155RewardsExhausted() external {
+        // Transfer all ERC1155 tokens away
+        vm.prank(address(box));
+        loot.safeTransferFrom(address(box), owner, 77, 100, "");
+        
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        // Should revert when trying to fulfill with ERC1155 reward
+        uint256[] memory erc1155Random = new uint256[](1);
+        erc1155Random[0] = 95; // Should select ERC1155 reward (index 2)
+        
+        vm.prank(address(0x1234));
+        vm.expectRevert();
+        box.fulfillRandomWords(reqId, erc1155Random);
+    }
 }
