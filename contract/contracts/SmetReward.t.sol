@@ -108,4 +108,24 @@ contract SmetRewardTest is Test {
         vm.prank(address(0x1234)); // VRF coordinator
         box.fulfillRandomWords(reqId, fakeRandom);
     }
+
+    // ===== INSUFFICIENT FEE TESTS =====
+    
+    function test_openWithInsufficientFee_reverts() external {
+        vm.prank(alice);
+        vm.expectRevert("!fee");
+        box.open{value: 0.04 ether}(false);
+    }
+    
+    function test_openWithZeroFee_reverts() external {
+        vm.prank(alice);
+        vm.expectRevert("!fee");
+        box.open{value: 0}(false);
+    }
+    
+    function test_openWithExcessiveFee_reverts() external {
+        vm.prank(alice);
+        vm.expectRevert("!fee");
+        box.open{value: 0.1 ether}(false);
+    }
 }
