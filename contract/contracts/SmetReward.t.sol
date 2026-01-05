@@ -313,4 +313,110 @@ contract SmetRewardTest is Test {
         vm.prank(owner);
         loot.setBaseURI("https://new-loot-uri.com/");
     }
+    
+    // ===== EDGE CASE TESTS =====
+    
+    function test_invalidAssetType_reverts() external {
+        // Create reward with invalid asset type
+        Reward[] memory invalidPrizes = new Reward[](1);
+        invalidPrizes[0] = Reward(4, address(gold), 100 ether); // Invalid type 4
+        
+        uint32[] memory w = new uint32[](1);
+        w[0] = 100;
+        
+        SmetReward invalidBox = new SmetReward(
+            address(0x1234),
+            1,
+            keccak256("keyHash"),
+            0.05 ether,
+            w,
+            invalidPrizes
+        );
+        
+        vm.prank(alice);
+        uint256 reqId = invalidBox.open{value: 0.05 ether}(false);
+        
+        vm.prank(address(0x1234));
+        vm.expectRevert("invalid assetType");
+        invalidBox.fulfillRandomWords(reqId, fakeRandom);
+    }
+    
+    function test_emptyWeightsAndPrizes_reverts() external {
+        Reward[] memory emptyPrizes = new Reward[](0);
+        uint32[] memory emptyWeights = new uint32[](0);
+        
+        vm.expectRevert("len mismatch");
+        new SmetReward(
+            address(0x1234),
+            1,
+            keccak256("keyHash"),
+            0.05 ether,
+            emptyWeights,
+            emptyPrizes
+        );
+    }
+    
+    function test_mismatchedWeightsAndPrizes_reverts() external {
+        Reward[] memory prizes = new Reward[](2);
+        prizes[0] = Reward(1, address(gold), 100 ether);
+        prizes[1] = Reward(2, address(hero), 1);
+        
+        uint32[] memory weights = new uint32[](3); // Mismatched length
+        weights[0] = 50;
+        weights[1] = 80;
+        weights[2] = 100;
+        
+        vm.expectRevert("len mismatch");
+        new SmetReward(
+            address(0x1234),
+            1,
+            keccak256("keyHash"),
+            0.05 ether,
+            weights,
+            prizes
+        );
+    }
+    
+    function test_refillWithZeroAmount_reverts() external {
+        vm.expectRevert("!amount");
+        box.refill(gold, 0);
+    }
+    
+    function test_multipleOpensFromSameUser() external {
+        vm.deal(alice, 10 ether);
+        
+        vm.prank(alice);
+        uint256 reqId1 = box.open{value: 0.05 ether}(false);
+        
+        vm.prank(alice);
+        uint256 reqId2 = box.open{value: 0.05 ether}(false);
+        
+        assertTrue(reqId1 != reqId2);
+        assertEq(address(box).balance, 0.1 ether);
+    }
+    
+    function test_randomnessDistribution() external {
+        // Test edge cases of random distribution
+        vm.prank(alice);
+        uint256 reqId1 = box.open{value: 0.05 ether}(false);
+        
+        // Test exact boundary values
+        uint256[] memory boundaryRandom = new uint256[](1);
+        boundaryRandom[0] = 59; // Should select first prize (ERC20)
+        
+        uint256 aliceGoldBefore = gold.balanceOf(alice);
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId1, boundaryRandom);
+        assertEq(gold.balanceOf(alice), aliceGoldBefore + 500 ether);
+        
+        // Test another boundary
+        vm.prank(bob);
+        vm.deal(bob, 1 ether);
+        uint256 reqId2 = box.open{value: 0.05 ether}(false);
+        
+        boundaryRandom[0] = 89; // Should select second prize (ERC721)
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId2, boundaryRandom);
+        assertEq(hero.ownerOf(1), bob);
+    }
 }
