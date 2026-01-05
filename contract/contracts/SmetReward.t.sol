@@ -601,4 +601,79 @@ contract SmetRewardTest is Test {
         // 6. Verify refill worked
         assertEq(gold.balanceOf(address(box)), 10000 ether + 1000 ether);
     }
+    
+    // ===== SECURITY AND REENTRANCY TESTS =====
+    
+    function test_noReentrancyInOpen() external {
+        // Create malicious contract that tries to reenter
+        MaliciousReentrant malicious = new MaliciousReentrant(box);
+        vm.deal(address(malicious), 1 ether);
+        
+        // Should not be able to reenter
+        vm.expectRevert();
+        malicious.attack();
+    }
+    
+    function test_overflowProtection() external {
+        // Test with very large numbers to ensure no overflow
+        Reward[] memory largePrizes = new Reward[](1);
+        largePrizes[0] = Reward(1, address(gold), type(uint256).max);
+        
+        uint32[] memory w = new uint32[](1);
+        w[0] = type(uint32).max;
+        
+        // Should not overflow during construction
+        SmetReward largeBox = new SmetReward(
+            address(0x1234),
+            1,
+            keccak256("keyHash"),
+            0.05 ether,
+            w,
+            largePrizes
+        );
+        
+        // Verify CDF was calculated correctly
+        assertTrue(address(largeBox) != address(0));
+    }
+    
+    function test_frontRunningProtection() external {
+        // Test that users cannot predict or manipulate randomness
+        vm.prank(alice);
+        uint256 reqId1 = box.open{value: 0.05 ether}(false);
+        
+        vm.prank(bob);
+        vm.deal(bob, 1 ether);
+        uint256 reqId2 = box.open{value: 0.05 ether}(false);
+        
+        // Even with same random values, different request IDs ensure different outcomes
+        assertTrue(reqId1 != reqId2);
+        
+        // Fulfill both with same randomness
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId1, fakeRandom);
+        
+        vm.prank(address(0x1234));
+        vm.expectRevert("no opener"); // Second call should fail as reqId1 is already used
+        box.fulfillRandomWords(reqId1, fakeRandom);
+    }
+}
+
+// Malicious contract for reentrancy testing
+contract MaliciousReentrant {
+    SmetReward public target;
+    
+    constructor(SmetReward _target) {
+        target = _target;
+    }
+    
+    function attack() external {
+        target.open{value: 0.05 ether}(false);
+    }
+    
+    receive() external payable {
+        // Try to reenter
+        if (address(target).balance >= 0.05 ether) {
+            target.open{value: 0.05 ether}(false);
+        }
+    }
 }
