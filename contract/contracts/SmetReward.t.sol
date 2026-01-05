@@ -182,4 +182,63 @@ contract SmetRewardTest is Test {
         vm.expectRevert();
         box.fulfillRandomWords(reqId, erc1155Random);
     }
+    
+    // ===== VRF CALLBACK SCENARIO TESTS =====
+    
+    function test_fulfillRandomWords_unauthorizedCaller_reverts() external {
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        // Try to fulfill from unauthorized address
+        vm.prank(bob);
+        vm.expectRevert();
+        box.fulfillRandomWords(reqId, fakeRandom);
+    }
+    
+    function test_fulfillRandomWords_invalidRequestId_reverts() external {
+        // Try to fulfill non-existent request
+        vm.prank(address(0x1234));
+        vm.expectRevert("no opener");
+        box.fulfillRandomWords(999, fakeRandom);
+    }
+    
+    function test_fulfillRandomWords_multipleCallsSameRequest_reverts() external {
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        // First fulfill should work
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId, fakeRandom);
+        
+        // Second fulfill should revert
+        vm.prank(address(0x1234));
+        vm.expectRevert("no opener");
+        box.fulfillRandomWords(reqId, fakeRandom);
+    }
+    
+    function test_fulfillRandomWords_differentRandomValues() external {
+        // Test ERC20 reward selection (random < 60)
+        vm.prank(alice);
+        uint256 reqId1 = box.open{value: 0.05 ether}(false);
+        
+        uint256[] memory erc20Random = new uint256[](1);
+        erc20Random[0] = 30;
+        
+        uint256 aliceGoldBefore = gold.balanceOf(alice);
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId1, erc20Random);
+        assertEq(gold.balanceOf(alice), aliceGoldBefore + 500 ether);
+        
+        // Test ERC1155 reward selection (random >= 90)
+        vm.prank(bob);
+        vm.deal(bob, 1 ether);
+        uint256 reqId2 = box.open{value: 0.05 ether}(false);
+        
+        uint256[] memory erc1155Random = new uint256[](1);
+        erc1155Random[0] = 95;
+        
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId2, erc1155Random);
+        assertEq(loot.balanceOf(bob, 77), 1);
+    }
 }
