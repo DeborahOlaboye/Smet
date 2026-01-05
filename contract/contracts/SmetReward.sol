@@ -221,6 +221,62 @@ contract SmetReward is
         return cdf;
     }
 
+    // ===== BATCH OPERATIONS =====
+
+    function addRewardsBatch(Reward[] memory rewards, uint32[] memory weights) external onlyOwner {
+        require(rewards.length == weights.length, "len mismatch");
+        require(rewards.length > 0, "empty arrays");
+        
+        for (uint i = 0; i < rewards.length; i++) {
+            require(weights[i] > 0, "!weight");
+            require(rewards[i].assetType >= 1 && rewards[i].assetType <= 3, "invalid assetType");
+            
+            prizePool.push(rewards[i]);
+            
+            if (cdf.length == 0) {
+                cdf.push(weights[i]);
+            } else {
+                cdf.push(cdf[cdf.length - 1] + weights[i]);
+            }
+            
+            emit RewardAdded(prizePool.length - 1, rewards[i], weights[i]);
+        }
+    }
+
+    function removeRewardsBatch(uint256[] memory indices) external onlyOwner {
+        require(indices.length > 0, "empty indices");
+        
+        // Sort indices in descending order to avoid index shifting issues
+        for (uint i = 0; i < indices.length - 1; i++) {
+            for (uint j = i + 1; j < indices.length; j++) {
+                if (indices[i] < indices[j]) {
+                    uint256 temp = indices[i];
+                    indices[i] = indices[j];
+                    indices[j] = temp;
+                }
+            }
+        }
+        
+        // Remove rewards in descending order
+        for (uint i = 0; i < indices.length; i++) {
+            require(indices[i] < prizePool.length, "invalid index");
+            
+            for (uint j = indices[i]; j < prizePool.length - 1; j++) {
+                prizePool[j] = prizePool[j + 1];
+            }
+            prizePool.pop();
+            
+            emit RewardRemoved(indices[i]);
+        }
+        
+        // Rebuild CDF if rewards remain
+        if (prizePool.length > 0) {
+            _rebuildCDF();
+        } else {
+            delete cdf;
+        }
+    }
+
     receive() external payable {}
 
     // ===== ERC721 & ERC1155 Receiver Support =====
