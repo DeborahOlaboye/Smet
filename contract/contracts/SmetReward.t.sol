@@ -453,4 +453,39 @@ contract SmetRewardTest is Test {
         
         assertEq(address(box).balance, balanceBefore + 1 ether);
     }
+    
+    // ===== TOKEN URI AND METADATA TESTS =====
+    
+    function test_heroTokenURI() external {
+        uint256 tokenId = hero.mint(alice);
+        string memory uri = hero.tokenURI(tokenId);
+        assertEq(uri, string(abi.encodePacked("https://api.smet.com/heroes/", tokenId, ".json")));
+    }
+    
+    function test_heroTokenURINonExistent_reverts() external {
+        vm.expectRevert("Token does not exist");
+        hero.tokenURI(999);
+    }
+    
+    function test_lootTokenURI() external {
+        string memory uri = loot.uri(77);
+        assertEq(uri, "https://api.smet.com/loot/77.json");
+    }
+    
+    function test_updateBaseURIs() external {
+        // Update hero base URI
+        vm.prank(owner);
+        hero.setBaseURI("https://new-api.smet.com/heroes/");
+        
+        uint256 tokenId = hero.mint(alice);
+        string memory newUri = hero.tokenURI(tokenId);
+        assertEq(newUri, string(abi.encodePacked("https://new-api.smet.com/heroes/", tokenId, ".json")));
+        
+        // Update loot base URI
+        vm.prank(owner);
+        loot.setBaseURI("https://new-api.smet.com/loot/");
+        
+        string memory newLootUri = loot.uri(77);
+        assertEq(newLootUri, "https://new-api.smet.com/loot/77.json");
+    }
 }
