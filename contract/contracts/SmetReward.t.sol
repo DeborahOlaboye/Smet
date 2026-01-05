@@ -536,4 +536,69 @@ contract SmetRewardTest is Test {
         
         assertEq(address(box).balance, 0.25 ether);
     }
+    
+    // ===== STATE CONSISTENCY AND INTEGRATION TESTS =====
+    
+    function test_stateConsistencyAfterMultipleOperations() external {
+        uint256 initialGoldBalance = gold.balanceOf(address(box));
+        uint256 initialHeroBalance = hero.balanceOf(address(box));
+        uint256 initialLootBalance = loot.balanceOf(address(box), 77);
+        
+        // Perform multiple operations
+        vm.deal(alice, 10 ether);
+        vm.deal(bob, 10 ether);
+        
+        vm.prank(alice);
+        uint256 reqId1 = box.open{value: 0.05 ether}(false);
+        
+        vm.prank(bob);
+        uint256 reqId2 = box.open{value: 0.05 ether}(false);
+        
+        // Fulfill first request (should give ERC721)
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId1, fakeRandom);
+        
+        // Fulfill second request with different random (should give ERC20)
+        uint256[] memory erc20Random = new uint256[](1);
+        erc20Random[0] = 30;
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId2, erc20Random);
+        
+        // Verify state consistency
+        assertEq(hero.ownerOf(1), alice);
+        assertEq(gold.balanceOf(bob), 500 ether);
+        assertEq(gold.balanceOf(address(box)), initialGoldBalance - 500 ether);
+        assertEq(hero.balanceOf(address(box)), initialHeroBalance - 1);
+        assertEq(address(box).balance, 0.1 ether);
+    }
+    
+    function test_fullWorkflowIntegration() external {
+        // Test complete workflow from setup to reward distribution
+        
+        // 1. Verify initial setup
+        assertEq(gold.totalSupply(), 10000000 ether);
+        assertEq(hero.nextId(), 2); // One hero already minted in setup
+        assertEq(loot.balanceOf(address(box), 77), 100);
+        
+        // 2. User opens reward box
+        vm.prank(alice);
+        uint256 reqId = box.open{value: 0.05 ether}(false);
+        
+        // 3. VRF fulfills request
+        vm.prank(address(0x1234));
+        box.fulfillRandomWords(reqId, fakeRandom);
+        
+        // 4. Verify reward was distributed
+        assertEq(hero.ownerOf(1), alice);
+        
+        // 5. Refill contract with more rewards
+        gold.transfer(alice, 1000 ether);
+        vm.prank(alice);
+        gold.approve(address(box), 1000 ether);
+        vm.prank(alice);
+        box.refill(gold, 1000 ether);
+        
+        // 6. Verify refill worked
+        assertEq(gold.balanceOf(address(box)), 10000 ether + 1000 ether);
+    }
 }
