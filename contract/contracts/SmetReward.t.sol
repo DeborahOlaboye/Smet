@@ -419,4 +419,38 @@ contract SmetRewardTest is Test {
         box.fulfillRandomWords(reqId2, boundaryRandom);
         assertEq(hero.ownerOf(1), bob);
     }
+    
+    // ===== ERC INTERFACE COMPLIANCE TESTS =====
+    
+    function test_erc721ReceiverCompliance() external {
+        bytes4 selector = box.onERC721Received(address(0), address(0), 0, "");
+        assertEq(selector, IERC721Receiver.onERC721Received.selector);
+    }
+    
+    function test_erc1155ReceiverCompliance() external {
+        bytes4 selector = box.onERC1155Received(address(0), address(0), 0, 0, "");
+        assertEq(selector, IERC1155Receiver.onERC1155Received.selector);
+        
+        uint256[] memory ids = new uint256[](2);
+        uint256[] memory amounts = new uint256[](2);
+        bytes4 batchSelector = box.onERC1155BatchReceived(address(0), address(0), ids, amounts, "");
+        assertEq(batchSelector, IERC1155Receiver.onERC1155BatchReceived.selector);
+    }
+    
+    function test_supportsInterface() external {
+        assertTrue(box.supportsInterface(type(IERC721Receiver).interfaceId));
+        assertTrue(box.supportsInterface(type(IERC1155Receiver).interfaceId));
+        assertFalse(box.supportsInterface(0x12345678)); // Random interface
+    }
+    
+    function test_receiveEther() external {
+        uint256 balanceBefore = address(box).balance;
+        
+        // Send ether directly to contract
+        vm.prank(alice);
+        (bool success,) = address(box).call{value: 1 ether}("");
+        assertTrue(success);
+        
+        assertEq(address(box).balance, balanceBefore + 1 ether);
+    }
 }
