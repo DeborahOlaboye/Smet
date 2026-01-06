@@ -19,7 +19,7 @@
     "@types/node": "^22.17.1",
     "forge-std": "github:foundry-rs/forge-std#v1.9.4",
     "hardhat": "^3.0.0",
-    "typescript": "~5.8.0",
+    "typescript": "~5.9.3",
     "viem": "^2.33.3"
   },
   "dependencies": {
