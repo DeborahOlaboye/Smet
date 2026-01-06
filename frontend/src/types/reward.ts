@@ -7,6 +7,8 @@ export interface Reward {
   remaining: number;
   total: number;
   type: 'common' | 'rare' | 'epic' | 'legendary';
+  // Optional client-side availability timestamp (Unix seconds)
+  availableAfter?: number;
 }
 
 export const rewardTypes = {
