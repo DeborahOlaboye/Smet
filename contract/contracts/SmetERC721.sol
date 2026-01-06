@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "./CircuitBreaker.sol";
-import "./TransactionHistory.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract SmetHero is ERC721, CircuitBreaker {
+contract SmetHero is ERC721, Ownable {
     uint256 public nextId = 1;
-    TransactionHistory public transactionHistory;
+    string private _baseTokenURI;
 
-    constructor(address _transactionHistory) ERC721("SmetHero", "SHERO") {
-        transactionHistory = TransactionHistory(_transactionHistory);
+    constructor(string memory baseURI) ERC721("SmetHero", "SHERO") Ownable(msg.sender) {
+        _baseTokenURI = baseURI;
     }
 
     function mint(address to) external circuitBreakerCheck(this.mint.selector) returns (uint256 id) {
@@ -84,5 +83,18 @@ contract SmetHero is ERC721, CircuitBreaker {
             0,
             0
         );
+    }
+
+    function setBaseURI(string memory baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+    }
+
+    function _baseURI() internal view override returns (string memory) {
+        return _baseTokenURI;
+    }
+
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(ownerOf(tokenId) != address(0), "Token does not exist");
+        return string(abi.encodePacked(_baseURI(), tokenId, ".json"));
     }
 }

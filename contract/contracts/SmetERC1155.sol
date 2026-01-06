@@ -64,4 +64,12 @@ contract SmetLoot is ERC1155, CircuitBreaker {
             0
         );
     }
+
+    function setBaseURI(string memory baseURI) external onlyOwner {
+        _baseTokenURI = baseURI;
+    }
+
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        return string(abi.encodePacked(_baseTokenURI, tokenId, ".json"));
+    }
 }

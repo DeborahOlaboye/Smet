@@ -10,7 +10,11 @@
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "verify:sepolia": "hardhat verify --network sepolia",
     "lint": "solhint 'contracts/**/*.sol'",
-    "lint:fix": "solhint 'contracts/**/*.sol' --fix"
+    "lint:fix": "solhint 'contracts/**/*.sol' --fix",
+    "ipfs:validate": "node scripts/ipfs/validate-metadata.js",
+    "ipfs:upload": "node scripts/ipfs/upload-metadata.js",
+    "ipfs:update-uris": "node scripts/ipfs/update-contract-uris.js",
+    "ipfs:deploy": "node scripts/ipfs/deploy-nft-metadata.js"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.0",
@@ -25,6 +29,7 @@
   "dependencies": {
     "@chainlink/contracts": "^1.4.0",
     "@openzeppelin/contracts": "^5.4.0",
-    "commander": "^12.0.0"
+    "pinata-web3": "^0.4.0",
+    "dotenv": "^16.4.5"
   }
 }
