@@ -86,6 +86,12 @@ export function RewardDisplay({ reward, onClaim, className = '' }: RewardDisplay
               <Badge variant="outline" className={cn(rewardType.color, 'font-medium')}>
                 {rewardType.name}
               </Badge>
+
+              {localReward.availableAfter && localReward.availableAfter > Math.floor(Date.now() / 1000) && (
+                <Badge variant="destructive" className="font-medium">
+                  Locked
+                </Badge>
+              )}
               
               <TooltipProvider>
                 <Tooltip>
