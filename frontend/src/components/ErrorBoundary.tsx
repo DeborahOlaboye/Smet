@@ -2,6 +2,7 @@
 
 import { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from './ui/button';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -34,28 +35,42 @@ export class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full text-center">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
-            <p className="text-gray-600 mb-6">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
-            <div className="space-x-4">
-              <Button
-                onClick={this.handleReset}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                Try again
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.location.reload()}
-                className="ml-2"
-              >
-                Reload Page
-              </Button>
-            </div>
+        <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 text-center">
+          <div className="bg-red-50 rounded-full p-3 sm:p-4 mb-4">
+            <AlertTriangle className="h-6 w-6 sm:h-8 sm:w-8 text-red-600" />
           </div>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">
+            Something went wrong
+          </h2>
+          <p className="text-sm sm:text-base text-gray-600 mb-6 max-w-md">
+            {this.state.error?.message || 'We encountered an unexpected error. Please try refreshing the page or contact support if the problem persists.'}
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <Button
+              onClick={() => window.location.reload()}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh Page
+            </Button>
+            <Button
+              variant="outline"
+              onClick={this.handleReset}
+              className="w-full sm:w-auto"
+            >
+              Try Again
+            </Button>
+          </div>
+          {process.env.NODE_ENV === 'development' && this.state.error && (
+            <details className="mt-6 w-full max-w-2xl">
+              <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                Error Details (Development)
+              </summary>
+              <pre className="mt-2 p-4 bg-gray-100 rounded-md text-xs text-left overflow-auto">
+                {this.state.error.stack}
+              </pre>
+            </details>
+          )}
         </div>
       );
     }
