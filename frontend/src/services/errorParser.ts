@@ -1,4 +1,5 @@
 import { ErrorCode, ParsedError, ErrorContext } from '@/types/errors';
+import { getContractErrorMapping } from '@/config/errorMappings';
 
 export class ErrorParser {
   private static errorMappings: Record<string, { code: ErrorCode; userMessage: string; severity: 'error' | 'warning' | 'info' }> = {
@@ -61,6 +62,22 @@ export class ErrorParser {
 
   static parseError(error: any, context?: ErrorContext): ParsedError {
     const errorMessage = this.extractErrorMessage(error);
+    
+    // Try contract-specific error mapping first
+    if (context?.contract) {
+      const contractMapping = getContractErrorMapping(context.contract, errorMessage);
+      if (contractMapping) {
+        return {
+          code: contractMapping.code,
+          originalMessage: errorMessage,
+          userMessage: contractMapping.userMessage,
+          severity: contractMapping.severity,
+          context
+        };
+      }
+    }
+    
+    // Fall back to general error mapping
     const mapping = this.findErrorMapping(errorMessage);
 
     return {
