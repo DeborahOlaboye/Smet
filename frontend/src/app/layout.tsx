@@ -35,6 +35,10 @@ export default function RootLayout({
           <header className="border-b">
             <div className="container mx-auto px-4 py-4 flex justify-between items-center">
               <h1 className="text-xl font-bold">Smet</h1>
+              <nav className="flex items-center gap-6">
+                <a href="/" className="text-gray-600 hover:text-gray-900">Home</a>
+                <a href="/dashboard" className="text-gray-600 hover:text-gray-900">Dashboard</a>
+              </nav>
               <div className="flex items-center gap-4">
                 <WalletConnectButton />
               </div>
