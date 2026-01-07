@@ -3,6 +3,7 @@ import { config } from '@/config/wagmi';
 import { CONTRACT_ADDRESSES, ERC20_ABI, ERC721_ABI, ERC1155_ABI } from '@/config/contracts';
 import { RewardHistory, UserStats, OwnedAsset, TransactionRecord } from '@/types/dashboard';
 import { EventService } from './events';
+import { ErrorParser } from './errorParser';
 
 export class DashboardService {
   static async getUserStats(userAddress: `0x${string}`): Promise<UserStats> {
@@ -34,7 +35,11 @@ export class DashboardService {
         lootItemsOwned: 0,
       };
     } catch (error) {
-      console.error('Error fetching user stats:', error);
+      const parsedError = ErrorParser.parseError(error, {
+        operation: 'Fetch User Stats',
+        contract: 'Multiple'
+      });
+      console.error('Error fetching user stats:', parsedError);
       throw error;
     }
   }
@@ -78,13 +83,21 @@ export class DashboardService {
             attributes: metadata.attributes || [],
           });
         } catch (error) {
-          console.error(`Error fetching hero ${i}:`, error);
+          const parsedError = ErrorParser.parseError(error, {
+            operation: 'Fetch Hero NFT',
+            contract: 'SmetHero'
+          });
+          console.error(`Error fetching hero ${i}:`, parsedError);
         }
       }
 
       return heroes;
     } catch (error) {
-      console.error('Error fetching owned heroes:', error);
+      const parsedError = ErrorParser.parseError(error, {
+        operation: 'Fetch Owned Heroes',
+        contract: 'SmetHero'
+      });
+      console.error('Error fetching owned heroes:', parsedError);
       return [];
     }
   }
