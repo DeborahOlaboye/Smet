@@ -1,5 +1,22 @@
-[default]
+[profile.default]
 src = "contracts"
 out = "out"
-libs = ["lib"]
-solc_version = "0.8.26"
+libs = ["node_modules"]
+test = "contracts"
+cache_path = "cache_forge"
+
+# See more config options https://github.com/foundry-rs/foundry/tree/master/config
+
+[profile.default.fuzz]
+runs = 1000
+
+[profile.default.invariant]
+runs = 256
+depth = 15
+fail_on_revert = false
+
+[rpc_endpoints]
+liskSepolia = "https://rpc.sepolia-api.lisk.com"
+
+[etherscan]
+liskSepolia = { key = "empty", url = "https://sepolia-blockscout.lisk.com/api" }
