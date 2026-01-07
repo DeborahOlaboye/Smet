@@ -9,6 +9,7 @@ import { RewardsGrid } from '@/components/rewards/RewardsGrid';
 import { RewardModal } from '@/components/rewards/RewardModal';
 import { Reward } from '@/types/reward';
 import { useEnhancedErrorHandler } from '@/hooks/useEnhancedErrorHandler';
+import { useToast } from '@/hooks/useToast';
 
 export default function Home() {
   const [rewards, setRewards] = useState<Reward[]>([]);
@@ -19,6 +20,7 @@ export default function Home() {
   const [isOpening, setIsOpening] = useState(false);
   const { isConnected } = useAccount();
   const { handleContractCall, handleError } = useEnhancedErrorHandler();
+  const { success, error: toastError, info } = useToast();
 
   // Fetch rewards on component mount
   useEffect(() => {
@@ -40,10 +42,7 @@ export default function Home() {
 
   const handleOpenReward = async (rewardId: string) => {
     if (!isConnected) {
-      handleError(new Error('Wallet not connected'), {
-        operation: 'Open Reward',
-        function: 'handleOpenReward'
-      });
+      toastError('Wallet Required', 'Please connect your wallet to open rewards');
       return;
     }
 
@@ -51,6 +50,8 @@ export default function Home() {
       setIsOpening(true);
       setSelectedReward(rewards.find(r => r.id === rewardId) || null);
       setIsModalOpen(true);
+
+      info('Opening Reward', 'Processing your reward box...');
 
       const result = await handleContractCall(
         () => openReward(rewardId),
@@ -62,6 +63,7 @@ export default function Home() {
       );
       
       if (result?.success) {
+        success('Reward Opened!', `You received: ${result.reward.name}`);
         setRewards(prevRewards => 
           prevRewards.map(r => 
             r.id === rewardId ? { ...r, remaining: result.reward.remaining } : r
