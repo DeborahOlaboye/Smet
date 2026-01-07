@@ -1,4 +1,5 @@
 import { OwnedAsset } from '@/types/dashboard';
+import { CONTRACT_ADDRESSES } from '@/config/contracts';
 
 interface AssetDetailModalProps {
   asset: OwnedAsset | null;
