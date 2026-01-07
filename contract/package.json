@@ -12,6 +12,8 @@
     "test:forge:coverage": "forge coverage",
     "test:forge:gas": "forge test --gas-report",
     "test:comprehensive": "bash run-tests.sh",
+    "manage:rewards": "hardhat run scripts/manage-rewards.ts --network liskSepolia",
+    "deploy:dynamic": "hardhat ignition deploy ignition/modules/SmetRewardDynamic.ts --network liskSepolia",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "verify:sepolia": "hardhat verify --network sepolia",
     "lint": "solhint 'contracts/**/*.sol'",

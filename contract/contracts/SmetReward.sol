@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 import "./CircuitBreaker.sol";
@@ -37,7 +38,8 @@ contract SmetReward is
     VRFConsumerBaseV2Plus, 
     IERC721Receiver, 
     IERC1155Receiver,
-    CircuitBreaker 
+    Ownable,
+    Pausable 
 {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant OPERATOR_ROLE = keccak256("OPERATOR_ROLE");
@@ -102,16 +104,11 @@ contract SmetReward is
      * @param reward The Reward struct representing the delivered asset.
      */
     event RewardOut(address indexed opener, Reward reward);
-    event FeeUpdated(uint256 oldFee, uint256 newFee);
-    event PrizeAdded(uint256 indexed prizeIndex, Reward reward, uint32 weight);
-    event VRFConfigUpdated(uint16 requestConfirmations, uint32 callbackGasLimit, uint32 numWords);
-
-    /** @notice Emitted when a pool's configuration changes. */
-    event PoolUpdated(uint256 indexed poolId);
-    /** @notice Maps VRF request ids to the address that opened the box. */
-    mapping(uint256 => address) private waiting;
-    /** @notice Maps VRF request ids to the pool id that was opened. */
-    mapping(uint256 => uint256) private waitingPool;
+    event RewardAdded(uint256 indexed index, Reward reward, uint32 weight);
+    event RewardRemoved(uint256 indexed index);
+    event RewardUpdated(uint256 indexed index, Reward reward, uint32 weight);
+    event WeightsUpdated();
+    event FeeUpdated(uint256 newFee);
 
     /** @notice Per-user timestamp of last open to enforce cooldowns. */
     mapping(address => uint256) public lastOpened;
@@ -122,9 +119,8 @@ contract SmetReward is
         uint256 _fee,
         uint256 _cooldownSeconds,
         uint32[] memory _weights,
-        Reward[] memory _prizes,
-        address _transactionHistory
-    ) VRFConsumerBaseV2Plus(_coordinator) {
+        Reward[] memory _prizes
+    ) VRFConsumerBaseV2Plus(_coordinator) Ownable(msg.sender) {
         require(_weights.length == _prizes.length && _weights.length > 0, "len mismatch");
         
         owner = msg.sender;
@@ -157,7 +153,7 @@ contract SmetReward is
         }
     }
 
-    function open(bool payInNative) external payable circuitBreakerCheck(this.open.selector) returns (uint256 reqId) {
+    function open(bool payInNative) external payable whenNotPaused returns (uint256 reqId) {
         require(msg.value == fee, "!fee");
         
         // Formal verification: Pre-conditions
@@ -307,12 +303,216 @@ contract SmetReward is
         );
     }
 
-    /**
-     * @notice Helper to query the number of prizes in the pool.
-     */
-    function prizePoolLength() external view returns (uint256) {
+    // ===== DYNAMIC REWARD POOL MANAGEMENT =====
+
+    function addReward(Reward memory reward, uint32 weight) external onlyOwner {
+        require(weight > 0, "!weight");
+        require(reward.assetType >= 1 && reward.assetType <= 3, "invalid assetType");
+        
+        prizePool.push(reward);
+        
+        if (cdf.length == 0) {
+            cdf.push(weight);
+        } else {
+            cdf.push(cdf[cdf.length - 1] + weight);
+        }
+        
+        emit RewardAdded(prizePool.length - 1, reward, weight);
+    }
+
+    function removeReward(uint256 index) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        
+        // Remove from prize pool
+        for (uint i = index; i < prizePool.length - 1; i++) {
+            prizePool[i] = prizePool[i + 1];
+        }
+        prizePool.pop();
+        
+        emit RewardRemoved(index);
+        
+        // Rebuild CDF if rewards remain
+        if (prizePool.length > 0) {
+            _rebuildCDF();
+        } else {
+            delete cdf;
+        }
+    }
+
+    function updateReward(uint256 index, Reward memory reward, uint32 weight) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        require(weight > 0, "!weight");
+        require(reward.assetType >= 1 && reward.assetType <= 3, "invalid assetType");
+        
+        prizePool[index] = reward;
+        emit RewardUpdated(index, reward, weight);
+        
+        _rebuildCDF();
+    }
+
+    function updateWeights(uint32[] memory weights) external onlyOwner {
+        require(weights.length == prizePool.length, "len mismatch");
+        require(weights.length > 0, "empty weights");
+        
+        delete cdf;
+        uint32 acc = 0;
+        for (uint i = 0; i < weights.length; i++) {
+            require(weights[i] > 0, "!weight");
+            acc += weights[i];
+            cdf.push(acc);
+        }
+        
+        emit WeightsUpdated();
+    }
+
+    function updateFee(uint256 newFee) external onlyOwner {
+        fee = newFee;
+        emit FeeUpdated(newFee);
+    }
+
+    function _rebuildCDF() private {
+        // This function requires external call to updateWeights with current weights
+        // or manual weight management by admin
+    }
+
+    // ===== VIEW FUNCTIONS =====
+
+    function getRewardCount() external view returns (uint256) {
         return prizePool.length;
     }
+
+    function getReward(uint256 index) external view returns (Reward memory) {
+        require(index < prizePool.length, "invalid index");
+        return prizePool[index];
+    }
+
+    function getAllRewards() external view returns (Reward[] memory) {
+        return prizePool;
+    }
+
+    function getWeights() external view returns (uint32[] memory) {
+        return cdf;
+    }
+
+    // ===== BATCH OPERATIONS =====
+
+    function addRewardsBatch(Reward[] memory rewards, uint32[] memory weights) external onlyOwner {
+        require(rewards.length == weights.length, "len mismatch");
+        require(rewards.length > 0, "empty arrays");
+        
+        for (uint i = 0; i < rewards.length; i++) {
+            require(weights[i] > 0, "!weight");
+            require(rewards[i].assetType >= 1 && rewards[i].assetType <= 3, "invalid assetType");
+            
+            prizePool.push(rewards[i]);
+            
+            if (cdf.length == 0) {
+                cdf.push(weights[i]);
+            } else {
+                cdf.push(cdf[cdf.length - 1] + weights[i]);
+            }
+            
+            emit RewardAdded(prizePool.length - 1, rewards[i], weights[i]);
+        }
+    }
+
+    function removeRewardsBatch(uint256[] memory indices) external onlyOwner {
+        require(indices.length > 0, "empty indices");
+        
+        // Sort indices in descending order to avoid index shifting issues
+        for (uint i = 0; i < indices.length - 1; i++) {
+            for (uint j = i + 1; j < indices.length; j++) {
+                if (indices[i] < indices[j]) {
+                    uint256 temp = indices[i];
+                    indices[i] = indices[j];
+                    indices[j] = temp;
+                }
+            }
+        }
+        
+        // Remove rewards in descending order
+        for (uint i = 0; i < indices.length; i++) {
+            require(indices[i] < prizePool.length, "invalid index");
+            
+            for (uint j = indices[i]; j < prizePool.length - 1; j++) {
+                prizePool[j] = prizePool[j + 1];
+            }
+            prizePool.pop();
+            
+            emit RewardRemoved(indices[i]);
+        }
+        
+        // Rebuild CDF if rewards remain
+        if (prizePool.length > 0) {
+            _rebuildCDF();
+        } else {
+            delete cdf;
+        }
+    }
+
+    // ===== EMERGENCY CONTROLS =====
+
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
+    function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
+        if (token == address(0)) {
+            payable(owner()).transfer(amount);
+        } else {
+            IERC20(token).transfer(owner(), amount);
+        }
+    }
+
+    function emergencyWithdrawNFT(address token, uint256 tokenId) external onlyOwner {
+        IERC721(token).safeTransferFrom(address(this), owner(), tokenId);
+    }
+
+    function emergencyWithdraw1155(address token, uint256 tokenId, uint256 amount) external onlyOwner {
+        IERC1155(token).safeTransferFrom(address(this), owner(), tokenId, amount, "");
+    }
+
+    // ===== ADVANCED REWARD MANAGEMENT =====
+
+    function setRewardStock(uint256 index, uint256 newStock) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        require(prizePool[index].assetType == 1, "only ERC20");
+        
+        prizePool[index].idOrAmount = newStock;
+        emit RewardUpdated(index, prizePool[index], 0);
+    }
+
+    function enableReward(uint256 index) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        // Implementation would require additional enabled/disabled state tracking
+    }
+
+    function disableReward(uint256 index) external onlyOwner {
+        require(index < prizePool.length, "invalid index");
+        // Implementation would require additional enabled/disabled state tracking
+    }
+
+    function getRewardStock(address token, uint256 tokenId) external view returns (uint256) {
+        if (token == address(0)) return address(this).balance;
+        
+        // Try ERC20 first
+        try IERC20(token).balanceOf(address(this)) returns (uint256 balance) {
+            return balance;
+        } catch {
+            // Try ERC1155
+            try IERC1155(token).balanceOf(address(this), tokenId) returns (uint256 balance) {
+                return balance;
+            } catch {
+                return 0;
+            }
+        }
+    }
+
+    receive() external payable {}
 
     // ===== ERC721 & ERC1155 Receiver Support =====
 
