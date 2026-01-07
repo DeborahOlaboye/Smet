@@ -1,15 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDashboard } from '@/hooks/useDashboard';
 import { StatsOverview } from './StatsOverview';
 import { AssetsGallery } from './AssetsGallery';
 import { RewardHistoryList } from './RewardHistoryList';
 import { TransactionHistory } from './TransactionHistory';
+import { MobileDashboard } from './MobileDashboard';
 
 type TabType = 'overview' | 'assets' | 'history' | 'transactions';
 
 export function DashboardLayout() {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [isMobile, setIsMobile] = useState(false);
   const { stats, ownedAssets, rewardHistory, transactions, isLoading, error } = useDashboard();
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  if (isMobile) {
+    return <MobileDashboard />;
+  }
 
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: '📊' },
