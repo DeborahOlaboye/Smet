@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { OwnedAsset } from '@/types/dashboard';
+import { AssetDetailModal } from './AssetDetailModal';
 
 interface AssetsGalleryProps {
   assets: OwnedAsset[];
@@ -6,6 +8,18 @@ interface AssetsGalleryProps {
 }
 
 export function AssetsGallery({ assets, isLoading }: AssetsGalleryProps) {
+  const [selectedAsset, setSelectedAsset] = useState<OwnedAsset | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleAssetClick = (asset: OwnedAsset) => {
+    setSelectedAsset(asset);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedAsset(null);
+  };
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -35,7 +49,11 @@ export function AssetsGallery({ assets, isLoading }: AssetsGalleryProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {assets.map((asset) => (
-        <div key={`${asset.type}-${asset.tokenId}`} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+        <div 
+          key={`${asset.type}-${asset.tokenId}`} 
+          className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => handleAssetClick(asset)}
+        >
           <div className="aspect-square bg-gray-100 rounded-t-lg overflow-hidden">
             {asset.image ? (
               <img
@@ -64,6 +82,11 @@ export function AssetsGallery({ assets, isLoading }: AssetsGalleryProps) {
           </div>
         </div>
       ))}
+      <AssetDetailModal
+        asset={selectedAsset}
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </div>
   );
 }
