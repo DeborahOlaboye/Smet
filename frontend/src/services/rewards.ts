@@ -41,6 +41,7 @@ const MOCK_REWARDS: Reward[] = [
     remaining: 2,
     total: 5,
     type: 'legendary',
+    availableAfter: Math.floor(Date.now()/1000) + 3600, // unlocks in 1h
   },
 ];
 
