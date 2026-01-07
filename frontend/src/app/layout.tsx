@@ -6,6 +6,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Web3Provider } from "@/providers/Web3Provider";
 import { Button } from "@/components/ui/button";
+import { NotificationProvider } from "@/contexts/NotificationContext";
+import { NotificationDisplay } from "@/components/ui/NotificationDisplay";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,26 +34,29 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col`}>
         <Web3Provider>
-          <header className="border-b">
-            <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-              <h1 className="text-xl font-bold">Smet</h1>
-              <nav className="flex items-center gap-6">
-                <a href="/" className="text-gray-600 hover:text-gray-900">Home</a>
-                <a href="/dashboard" className="text-gray-600 hover:text-gray-900">Dashboard</a>
-              </nav>
-              <div className="flex items-center gap-4">
-                <WalletConnectButton />
+          <NotificationProvider>
+            <header className="border-b">
+              <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+                <h1 className="text-xl font-bold">Smet</h1>
+                <nav className="flex items-center gap-6">
+                  <a href="/" className="text-gray-600 hover:text-gray-900">Home</a>
+                  <a href="/dashboard" className="text-gray-600 hover:text-gray-900">Dashboard</a>
+                </nav>
+                <div className="flex items-center gap-4">
+                  <WalletConnectButton />
+                </div>
               </div>
-            </div>
-          </header>
-          <main className="flex-1">
-            {children}
-          </main>
-          <footer className="border-t py-4 mt-8">
-            <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-              &copy; {new Date().getFullYear()} Smet. All rights reserved.
-            </div>
-          </footer>
+            </header>
+            <main className="flex-1">
+              {children}
+            </main>
+            <footer className="border-t py-4 mt-8">
+              <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
+                &copy; {new Date().getFullYear()} Smet. All rights reserved.
+              </div>
+            </footer>
+            <NotificationDisplay />
+          </NotificationProvider>
         </Web3Provider>
       </body>
     </html>
