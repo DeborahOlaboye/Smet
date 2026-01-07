@@ -2,6 +2,7 @@ import { readContract, readContracts } from '@wagmi/core';
 import { config } from '@/config/wagmi';
 import { CONTRACT_ADDRESSES, ERC20_ABI, ERC721_ABI, ERC1155_ABI } from '@/config/contracts';
 import { RewardHistory, UserStats, OwnedAsset, TransactionRecord } from '@/types/dashboard';
+import { EventService } from './events';
 
 export class DashboardService {
   static async getUserStats(userAddress: `0x${string}`): Promise<UserStats> {
@@ -22,11 +23,12 @@ export class DashboardService {
       ];
 
       const results = await readContracts(config, { contracts });
+      const rewardHistory = await EventService.getRewardOpenEvents(userAddress);
       
       return {
         totalSpent: '0',
-        boxesOpened: 0,
-        totalRewardsWon: 0,
+        boxesOpened: rewardHistory.length,
+        totalRewardsWon: rewardHistory.length,
         smetGoldBalance: results[0].result?.toString() || '0',
         heroesOwned: Number(results[1].result) || 0,
         lootItemsOwned: 0,
@@ -88,14 +90,20 @@ export class DashboardService {
   }
 
   static async getRewardHistory(userAddress: `0x${string}`): Promise<RewardHistory[]> {
-    // This would typically fetch from blockchain events or a backend service
-    // For now, returning mock data
-    return [];
+    try {
+      return await EventService.getRewardOpenEvents(userAddress);
+    } catch (error) {
+      console.error('Error fetching reward history:', error);
+      return [];
+    }
   }
 
   static async getTransactionHistory(userAddress: `0x${string}`): Promise<TransactionRecord[]> {
-    // This would typically fetch from blockchain or indexing service
-    // For now, returning mock data
-    return [];
+    try {
+      return await EventService.getTransactionHistory(userAddress);
+    } catch (error) {
+      console.error('Error fetching transaction history:', error);
+      return [];
+    }
   }
 }
