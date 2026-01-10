@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { ErrorParser } from '@/services/errorParser';
+import { RetryService } from '@/services/retryService';
 import { ErrorContext } from '@/types/errors';
 
 export function useErrorHandler() {
@@ -17,10 +18,15 @@ export function useErrorHandler() {
 
   const handleContractCall = useCallback(async <T>(
     operation: () => Promise<T>,
-    context: ErrorContext
+    context: ErrorContext,
+    enableRetry: boolean = true
   ): Promise<T | null> => {
     try {
-      return await operation();
+      if (enableRetry) {
+        return await RetryService.executeWithRetry(operation, context);
+      } else {
+        return await operation();
+      }
     } catch (error) {
       handleError(error, context);
       return null;
