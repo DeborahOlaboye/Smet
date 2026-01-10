@@ -8,10 +8,12 @@ export default function AdminLayout({
 }) {
   return (
     <AdminAuthProvider>
-      <div className="flex h-screen bg-background">
+      <div className="flex h-screen bg-gray-50">
         <AdminSidebar />
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
+        <main className="flex-1 overflow-y-auto">
+          <div className="pt-16 md:pt-0 px-4 md:px-6">
+            {children}
+          </div>
         </main>
       </div>
     </AdminAuthProvider>
