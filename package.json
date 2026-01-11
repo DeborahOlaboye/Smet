@@ -1,0 +1,19 @@
+{
+  "name": "smet",
+  "version": "0.0.1",
+  "main": "index.ts",
+  "types": "index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./index.ts",
+      "require": "./index.ts"
+    }
+  },
+  "dependencies": {
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "typescript": "^5.0.0"
+  }
+}
