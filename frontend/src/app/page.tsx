@@ -4,43 +4,30 @@ import Image from "next/image";
 
 import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
-import { fetchRewards, openReward } from '@/services/rewards';
 import { RewardsGrid } from '@/components/rewards/RewardsGrid';
 import { RewardModal } from '@/components/rewards/RewardModal';
 import { Reward } from '@/types/reward';
 import { useEnhancedErrorHandler } from '@/hooks/useEnhancedErrorHandler';
 import { useToast } from '@/hooks/useToast';
 import { useRewardContract } from '@/hooks/useRewardContract';
+import { useRealTimeRewards } from '@/hooks/useRealTimeRewards';
 
 export default function Home() {
-  const [rewards, setRewards] = useState<Reward[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
   const { isConnected } = useAccount();
-  const { handleContractCall, handleError } = useEnhancedErrorHandler();
-  const { success, error: toastError, info } = useToast();
+  const { handleError } = useEnhancedErrorHandler();
+  const { error: toastError, info } = useToast();
   const { openReward: contractOpenReward, isLoading: contractLoading, fee } = useRewardContract();
+  const { rewards, isLoading, error, refetch } = useRealTimeRewards();
 
   // Fetch rewards on component mount
   useEffect(() => {
-    const loadRewards = async () => {
-      try {
-        setIsLoading(true);
-        const data = await fetchRewards();
-        setRewards(data);
-      } catch (err) {
-        console.error('Failed to fetch rewards:', err);
-        setError('Failed to load rewards. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadRewards();
-  }, []);
+    if (error) {
+      console.error('Blockchain error:', error);
+    }
+  }, [error]);
 
   const handleOpenReward = async (rewardId: string) => {
     if (!isConnected) {
@@ -55,14 +42,10 @@ export default function Home() {
 
       info('Opening Reward', `Processing reward box... Fee: ${Number(fee) / 1e18} ETH`);
 
-      // Use the contract hook instead of the service
+      // Use the contract hook for blockchain interaction
       await contractOpenReward();
       
-      // Refresh rewards after successful opening
-      const updatedRewards = await fetchRewards();
-      setRewards(updatedRewards);
-      
-      success('Reward Opened!', 'Check your wallet for the new assets!');
+      // Real-time hook will automatically update rewards via events
     } catch (err: any) {
       handleError(err, {
         operation: 'Open Reward Box',
@@ -101,7 +84,7 @@ export default function Home() {
           onClick={() => window.location.reload()}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
-          Try Again
+          Retry Connection
         </button>
       </div>
     );
