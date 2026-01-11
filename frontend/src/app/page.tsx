@@ -10,6 +10,7 @@ import { RewardModal } from '@/components/rewards/RewardModal';
 import { Reward } from '@/types/reward';
 import { useEnhancedErrorHandler } from '@/hooks/useEnhancedErrorHandler';
 import { useToast } from '@/hooks/useToast';
+import { useRewardContract } from '@/hooks/useRewardContract';
 
 export default function Home() {
   const [rewards, setRewards] = useState<Reward[]>([]);
@@ -21,6 +22,7 @@ export default function Home() {
   const { isConnected } = useAccount();
   const { handleContractCall, handleError } = useEnhancedErrorHandler();
   const { success, error: toastError, info } = useToast();
+  const { openReward: contractOpenReward, isLoading: contractLoading, fee } = useRewardContract();
 
   // Fetch rewards on component mount
   useEffect(() => {
@@ -51,29 +53,21 @@ export default function Home() {
       setSelectedReward(rewards.find(r => r.id === rewardId) || null);
       setIsModalOpen(true);
 
-      info('Opening Reward', 'Processing your reward box...');
+      info('Opening Reward', `Processing reward box... Fee: ${Number(fee) / 1e18} ETH`);
 
-      const result = await handleContractCall(
-        () => openReward(rewardId),
-        {
-          operation: 'Open Reward Box',
-          function: 'openReward',
-          contract: 'SmetReward'
-        }
-      );
+      // Use the contract hook instead of the service
+      await contractOpenReward();
       
-      if (result?.success) {
-        success('Reward Opened!', `You received: ${result.reward.name}`);
-        setRewards(prevRewards => 
-          prevRewards.map(r => 
-            r.id === rewardId ? { ...r, remaining: result.reward.remaining } : r
-          )
-        );
-      }
-    } catch (err) {
+      // Refresh rewards after successful opening
+      const updatedRewards = await fetchRewards();
+      setRewards(updatedRewards);
+      
+      success('Reward Opened!', 'Check your wallet for the new assets!');
+    } catch (err: any) {
       handleError(err, {
         operation: 'Open Reward Box',
-        function: 'openReward'
+        function: 'openReward',
+        contract: 'SmetReward'
       });
     } finally {
       setIsOpening(false);
@@ -140,7 +134,7 @@ export default function Home() {
       <RewardsGrid 
         rewards={rewards} 
         onOpenReward={handleOpenReward} 
-        isLoading={isOpening}
+        isLoading={isOpening || contractLoading}
         activeRewardId={isOpening && selectedReward ? selectedReward.id : undefined}
       />
 
