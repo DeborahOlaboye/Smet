@@ -1,0 +1,78 @@
+name: Monitoring & Notifications
+
+on:
+  workflow_run:
+    workflows: ["Smart Contract CI", "Frontend CI", "Deploy"]
+    types:
+      - completed
+  issues:
+    types: [opened, closed]
+  pull_request:
+    types: [opened, closed, merged]
+
+jobs:
+  notify-status:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion != 'success' }}
+    
+    steps:
+    - name: Notify on failure
+      uses: 8398a7/action-slack@v3
+      with:
+        status: failure
+        text: |
+          Workflow ${{ github.event.workflow_run.name }} failed!
+          Repository: ${{ github.repository }}
+          Branch: ${{ github.event.workflow_run.head_branch }}
+          Commit: ${{ github.event.workflow_run.head_sha }}
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  performance-monitoring:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Build and analyze bundle
+      run: |
+        cd frontend
+        npm run build
+        npx @next/bundle-analyzer
+    
+    - name: Performance audit
+      uses: treosh/lighthouse-ci-action@v10
+      with:
+        configPath: './lighthouserc.json'
+        uploadArtifacts: true
+        temporaryPublicStorage: true
+
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
