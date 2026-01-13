@@ -8,6 +8,7 @@ import { Plus, Loader2, AlertCircle } from 'lucide-react';
 import { RewardsListTable } from '@/components/admin/RewardsListTable';
 import { RewardsStats } from '@/components/admin/RewardsStats';
 import { RewardsFilter } from '@/components/admin/RewardsFilter';
+import { ErrorDisplay } from '@/components/admin/ErrorDisplay';
 import { AddRewardDialog } from '@/components/admin/AddRewardDialog';
 import { EditRewardDialog } from '@/components/admin/EditRewardDialog';
 import { DeleteRewardDialog } from '@/components/admin/DeleteRewardDialog';
@@ -207,16 +208,7 @@ export default function AdminRewardsPage() {
           </Button>
         </div>
 
-        {error && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-red-800">
-                <AlertCircle className="h-5 w-5" />
-                <p className="text-sm font-medium">{error}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {error && <ErrorDisplay error={error} onRetry={loadRewards} />}
 
         {!loading && <RewardsStats rewards={rewards} />}
 
