@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Loader2, AlertCircle } from 'lucide-react';
 import { RewardsListTable } from '@/components/admin/RewardsListTable';
 import { RewardsStats } from '@/components/admin/RewardsStats';
+import { RewardsFilter } from '@/components/admin/RewardsFilter';
 import { AddRewardDialog } from '@/components/admin/AddRewardDialog';
 import { EditRewardDialog } from '@/components/admin/EditRewardDialog';
 import { DeleteRewardDialog } from '@/components/admin/DeleteRewardDialog';
@@ -29,6 +30,11 @@ export default function AdminRewardsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [history, setHistory] = useState<RewardHistoryEntry[]>([]);
+
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [assetTypeFilter, setAssetTypeFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
 
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -171,6 +177,17 @@ export default function AdminRewardsPage() {
     setRefillDialogOpen(true);
   };
 
+  // Filter rewards
+  const filteredRewards = rewards.filter((reward) => {
+    const matchesSearch = reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      reward.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesAssetType = assetTypeFilter === 'all' || reward.assetType === assetTypeFilter;
+    const matchesStatus = statusFilter === 'all' ||
+      (statusFilter === 'active' && reward.isActive) ||
+      (statusFilter === 'inactive' && !reward.isActive);
+    return matchesSearch && matchesAssetType && matchesStatus;
+  });
+
   return (
     <ProtectedRoute>
       <div className="space-y-4 sm:space-y-6 p-4 sm:p-6 md:ml-64">
@@ -204,8 +221,16 @@ export default function AdminRewardsPage() {
         {!loading && <RewardsStats rewards={rewards} />}
 
         <Card>
-          <CardHeader>
+          <CardHeader className="space-y-3">
             <CardTitle className="text-base sm:text-lg">Current Rewards</CardTitle>
+            <RewardsFilter
+              searchTerm={searchTerm}
+              onSearchChange={setSearchTerm}
+              assetTypeFilter={assetTypeFilter}
+              onAssetTypeChange={setAssetTypeFilter}
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
+            />
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -214,7 +239,7 @@ export default function AdminRewardsPage() {
               </div>
             ) : (
               <RewardsListTable
-                rewards={rewards}
+                rewards={filteredRewards}
                 onEdit={openEditDialog}
                 onDelete={openDeleteDialog}
                 onRefill={openRefillDialog}
