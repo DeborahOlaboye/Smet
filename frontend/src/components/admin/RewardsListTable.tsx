@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, RefreshCw } from 'lucide-react';
 import { rewardTypes } from '@/types/reward';
+import { RewardCardMobile } from './RewardCardMobile';
 
 interface RewardsListTableProps {
   rewards: AdminReward[];
@@ -25,7 +26,22 @@ export function RewardsListTable({ rewards, onEdit, onDelete, onRefill }: Reward
   }
 
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* Mobile Card View */}
+      <div className="md:hidden">
+        {rewards.map((reward) => (
+          <RewardCardMobile
+            key={reward.id}
+            reward={reward}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onRefill={onRefill}
+          />
+        ))}
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -115,6 +131,7 @@ export function RewardsListTable({ rewards, onEdit, onDelete, onRefill }: Reward
           ))}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   );
 }
