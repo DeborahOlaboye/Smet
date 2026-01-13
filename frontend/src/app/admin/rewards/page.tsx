@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, AlertCircle } from 'lucide-react';
 import { RewardsListTable } from '@/components/admin/RewardsListTable';
+import { RewardsStats } from '@/components/admin/RewardsStats';
 import { AddRewardDialog } from '@/components/admin/AddRewardDialog';
 import { EditRewardDialog } from '@/components/admin/EditRewardDialog';
 import { DeleteRewardDialog } from '@/components/admin/DeleteRewardDialog';
@@ -199,6 +200,8 @@ export default function AdminRewardsPage() {
             </CardContent>
           </Card>
         )}
+
+        {!loading && <RewardsStats rewards={rewards} />}
 
         <Card>
           <CardHeader>
