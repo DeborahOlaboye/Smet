@@ -455,8 +455,14 @@ export function RewardTable() {
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-gray-500">
-                  No rewards found
+                <TableCell colSpan={7} className="text-center py-12">
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    <p className="text-gray-500 font-medium">No rewards found</p>
+                    <p className="text-sm text-gray-400">Try adjusting your search or filters</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -543,7 +549,13 @@ export function RewardTable() {
             );
           })
         ) : (
-          <div className="text-center py-8 text-gray-500">No rewards found</div>
+          <div className="text-center py-12 px-4">
+            <svg className="h-16 w-16 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <p className="text-gray-500 font-medium text-base">No rewards found</p>
+            <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
+          </div>
         )}
       </div>
 
