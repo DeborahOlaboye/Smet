@@ -65,6 +65,20 @@ export function RewardTable() {
     await loadRewards(true);
   };
 
+  const getStatistics = () => {
+    const totalRewards = rewards.length;
+    const activeRewards = rewards.filter(r => r.isActive && r.remaining > 0).length;
+    const outOfStock = rewards.filter(r => r.remaining === 0).length;
+    const totalProbability = rewards.reduce((sum, r) => sum + r.probability, 0);
+
+    return {
+      totalRewards,
+      activeRewards,
+      outOfStock,
+      avgProbability: totalRewards > 0 ? ((totalProbability / totalRewards) * 100).toFixed(2) : '0.00',
+    };
+  };
+
   const getStatusDisplay = (reward: AdminReward) => {
     if (reward.remaining === 0) {
       return { label: 'Out of Stock', color: 'bg-red-100 text-red-800' };
@@ -220,6 +234,34 @@ export function RewardTable() {
           <span className="hidden sm:inline">Refresh</span>
         </Button>
       </div>
+
+      {!loading && rewards.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          {(() => {
+            const stats = getStatistics();
+            return (
+              <>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+                  <p className="text-xs text-blue-700 font-semibold">Total Rewards</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-900 mt-1">{stats.totalRewards}</p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+                  <p className="text-xs text-green-700 font-semibold">Active</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-green-900 mt-1">{stats.activeRewards}</p>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 border border-red-200">
+                  <p className="text-xs text-red-700 font-semibold">Out of Stock</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-red-900 mt-1">{stats.outOfStock}</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                  <p className="text-xs text-purple-700 font-semibold">Avg Probability</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-purple-900 mt-1">{stats.avgProbability}%</p>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
 
       <div className="flex flex-col gap-4">
         <div className="relative">
