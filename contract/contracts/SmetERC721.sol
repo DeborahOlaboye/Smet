@@ -12,6 +12,11 @@ contract SmetHero is ERC721, Ownable {
         _baseTokenURI = baseURI;
     }
 
+    function setMinter(address _minter) external onlyOwner {
+        require(_minter != address(0), "Invalid minter address");
+        minter = _minter;
+    }
+
     function mint(address to) external circuitBreakerCheck(this.mint.selector) returns (uint256 id) {
         id = nextId++;
         totalMinted++;
