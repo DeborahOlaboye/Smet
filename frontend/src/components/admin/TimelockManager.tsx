@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { AlertCircle, Loader2, Copy } from 'lucide-react';
+import { Loader2, Copy } from 'lucide-react';
 import { setTimelock } from '@/services/adminSettings';
 import { useToast } from '@/hooks/use-toast';
 
@@ -52,11 +52,12 @@ export function TimelockManager({ currentTimelock, onUpdate }: TimelockManagerPr
           description: result.error || 'Failed to update timelock',
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'An error occurred';
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'An error occurred',
+        description: errorMsg,
       });
     } finally {
       setLoading(false);

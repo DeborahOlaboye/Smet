@@ -31,11 +31,12 @@ export function PauseControl({ isPaused, onStatusChange }: PauseControlProps) {
           description: result.error || `Failed to ${isPaused ? 'resume' : 'pause'} contract`,
         });
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : 'An error occurred';
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: error.message || 'An error occurred',
+        description: errorMsg,
       });
     } finally {
       setLoading(false);

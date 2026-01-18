@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Loader2, AlertCircle, Lock, Zap, Wallet, Shield } from 'lucide-react';
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute';
 import { SettingsCard } from '@/components/admin/SettingsCard';
@@ -11,7 +11,6 @@ import { FeeDisplay } from '@/components/admin/FeeDisplay';
 import { OwnerInfo } from '@/components/admin/OwnerInfo';
 import { VRFConfig } from '@/components/admin/VRFConfig';
 import { EmergencyWarning } from '@/components/admin/EmergencyWarning';
-import { formatEther } from 'viem';
 import {
   ContractSettings,
   fetchContractSettings,
@@ -26,11 +25,7 @@ export default function AdminSettingsPage() {
   const [networkInfo, setNetworkInfo] = useState({ chainId: 4242, chainName: 'Lisk Sepolia' });
   const { toast } = useToast();
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -40,8 +35,8 @@ export default function AdminSettingsPage() {
       ]);
       setSettings(settingsData);
       setNetworkInfo(networkData);
-    } catch (err: any) {
-      const errorMsg = err.message || 'Failed to load settings';
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load settings';
       setError(errorMsg);
       toast({
         variant: 'destructive',
@@ -51,7 +46,11 @@ export default function AdminSettingsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   if (loading) {
     return (
