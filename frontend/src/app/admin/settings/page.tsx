@@ -1,11 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Loader2, AlertCircle, Lock, Zap, Wallet } from 'lucide-react';
+import { Loader2, AlertCircle, Lock, Zap, Wallet, Shield } from 'lucide-react';
 import { ProtectedRoute } from '@/components/admin/ProtectedRoute';
 import { SettingsCard } from '@/components/admin/SettingsCard';
 import { PauseControl } from '@/components/admin/PauseControl';
 import { TimelockManager } from '@/components/admin/TimelockManager';
+import { NetworkStatus } from '@/components/admin/NetworkStatus';
+import { FeeDisplay } from '@/components/admin/FeeDisplay';
+import { OwnerInfo } from '@/components/admin/OwnerInfo';
+import { VRFConfig } from '@/components/admin/VRFConfig';
+import { EmergencyWarning } from '@/components/admin/EmergencyWarning';
 import { formatEther } from 'viem';
 import {
   ContractSettings,
@@ -77,11 +82,6 @@ export default function AdminSettingsPage() {
     );
   }
 
-  const formatAddress = (addr: string) => {
-    if (!addr || addr === '0x0000000000000000000000000000000000000000') return 'Not set';
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
   return (
     <ProtectedRoute>
       <div className="space-y-6 p-4 sm:p-6 md:ml-64">
@@ -89,6 +89,13 @@ export default function AdminSettingsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage contract parameters and emergency functions</p>
         </div>
+
+        {/* Network Status */}
+        <NetworkStatus
+          chainId={networkInfo.chainId}
+          chainName={networkInfo.chainName}
+          isConnected={true}
+        />
 
         {/* Network Information */}
         <SettingsCard
@@ -107,31 +114,31 @@ export default function AdminSettingsPage() {
           </div>
         </SettingsCard>
 
-        {/* Contract Information */}
+        {/* Contract Owner */}
         <SettingsCard
-          title="Contract Information"
-          icon={<Lock className="h-5 w-5 text-purple-600" />}
+          title="Contract Owner"
+          icon={<Shield className="h-5 w-5 text-green-600" />}
         >
-          <div className="space-y-4">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Owner Address</p>
-              <code className="block bg-gray-100 rounded px-3 py-2 text-sm font-mono break-all">
-                {settings.owner}
-              </code>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Timelock Address</p>
-              <code className="block bg-gray-100 rounded px-3 py-2 text-sm font-mono break-all">
-                {formatAddress(settings.timelock)}
-              </code>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Box Opening Fee</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {formatEther(settings.fee)} ETH
-              </p>
-            </div>
-          </div>
+          <OwnerInfo owner={settings.owner} label="Owner Address" />
+        </SettingsCard>
+
+        {/* Box Opening Fee */}
+        <SettingsCard
+          title="Box Opening Fee"
+          icon={<Wallet className="h-5 w-5 text-amber-600" />}
+        >
+          <FeeDisplay fee={settings.fee} isImmutable={true} />
+        </SettingsCard>
+
+        {/* VRF Configuration */}
+        <SettingsCard
+          title="Chainlink VRF Settings"
+          icon={<Zap className="h-5 w-5 text-indigo-600" />}
+        >
+          <VRFConfig
+            requestConfirmations={3}
+            gasLimit={250000}
+          />
         </SettingsCard>
 
         {/* Contract State Management */}
@@ -155,13 +162,17 @@ export default function AdminSettingsPage() {
           title="Emergency Functions"
           icon={<Wallet className="h-5 w-5 text-red-600" />}
         >
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
-            <p className="font-semibold mb-2">⚠️ Emergency Operations</p>
-            <p>Emergency functions are available through the contract directly. Use with caution.</p>
-            <ul className="mt-3 space-y-1 ml-4 list-disc">
-              <li>Pause/Unpause contract (available above)</li>
-              <li>Withdraw funds (execute via contract)</li>
+          <EmergencyWarning
+            title="Emergency Operations"
+            message="Only use emergency functions when absolutely necessary"
+          />
+          <div className="mt-4 text-sm text-gray-700 space-y-2">
+            <p className="font-semibold">Available emergency functions:</p>
+            <ul className="space-y-1 ml-4 list-disc">
+              <li>Pause/Unpause contract (available in Contract State section above)</li>
+              <li>Withdraw collected fees (execute via contract)</li>
               <li>Recover stuck NFTs (execute via contract)</li>
+              <li>Update timelock (available in Timelock Management section above)</li>
             </ul>
           </div>
         </SettingsCard>
