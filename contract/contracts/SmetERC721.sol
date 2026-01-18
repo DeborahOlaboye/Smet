@@ -15,6 +15,18 @@ contract SmetHero is ERC721, Ownable {
         _;
     }
 
+    /**
+     * @dev Access Control Implementation - Issue #89
+     * The contract implements strict access control on the mint function to prevent
+     * unauthorized token creation that could break the game economy.
+     *
+     * Only the authorized minter address (set to SmetReward contract) can create new tokens.
+     * This prevents public mint calls and ensures all hero NFTs are minted through the
+     * official reward system.
+     *
+     * Owner can update the minter address via setMinter() function.
+     */
+
     constructor(string memory baseURI) ERC721("SmetHero", "SHERO") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
     }
