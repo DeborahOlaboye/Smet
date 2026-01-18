@@ -26,7 +26,7 @@ contract SmetLoot is ERC1155, CircuitBreaker, Ownable {
         emit MinterSet(_minter);
     }
 
-    function mint(address to, uint256 id, uint256 amount) external circuitBreakerCheck(this.mint.selector) {
+    function mint(address to, uint256 id, uint256 amount) external onlyMinter circuitBreakerCheck(this.mint.selector) {
         _mint(to, id, amount, "");
         
         transactionHistory.recordTransaction(
