@@ -1,106 +1,699 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Edit, Trash2, Eye } from 'lucide-react';
+import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X, RefreshCw, RotateCcw, Download } from 'lucide-react';
+import { AdminReward, fetchAdminRewards, updateReward, deleteReward, refillRewardStock, EditRewardParams } from '@/services/adminRewards';
+import { EditRewardDialog } from './EditRewardDialog';
+import { DeleteRewardDialog } from './DeleteRewardDialog';
+import { RefillStockDialog } from './RefillStockDialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-// Mock data - replace with actual data from your API
-const mockRewards = [
-  { id: '1', name: 'Golden Sword', type: 'Legendary', status: 'Active', claims: 45, remaining: 55 },
-  { id: '2', name: 'Magic Potion', type: 'Common', status: 'Active', claims: 120, remaining: 80 },
-  { id: '3', name: 'Dragon Shield', type: 'Epic', status: 'Paused', claims: 23, remaining: 77 },
-  { id: '4', name: 'Health Elixir', type: 'Common', status: 'Active', claims: 89, remaining: 11 },
-  { id: '5', name: 'Mystic Gem', type: 'Rare', status: 'Active', claims: 67, remaining: 33 },
-];
+type SortField = 'id' | 'name' | 'type' | 'probability' | 'remaining' | 'status';
+type SortOrder = 'asc' | 'desc';
+type StatusFilter = 'all' | 'active' | 'inactive' | 'outofstock';
+type TypeFilter = 'all' | 'common' | 'rare' | 'epic' | 'legendary';
+
+interface SortState {
+  field: SortField;
+  order: SortOrder;
+}
+
+interface StatusDisplay {
+  label: string;
+  color: string;
+}
+
+interface Statistics {
+  totalRewards: number;
+  activeRewards: number;
+  outOfStock: number;
+  avgProbability: string;
+}
+
+const ITEMS_PER_PAGE = 10;
 
 export function RewardTable() {
-  const [selectedReward, setSelectedReward] = useState<string | null>(null);
+  const [rewards, setRewards] = useState<AdminReward[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortState, setSortState] = useState<SortState>({ field: 'id', order: 'asc' });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+
+  const [selectedReward, setSelectedReward] = useState<AdminReward | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [refillDialogOpen, setRefillDialogOpen] = useState(false);
+
+  useEffect(() => {
+    loadRewards();
+  }, []);
+
+  const loadRewards = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      setError(null);
+      const data = await fetchAdminRewards();
+      setRewards(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load rewards');
+      console.error('Error loading rewards:', err);
+    } finally {
+      if (isRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
+    }
+  };
+
+  const handleRefresh = async () => {
+    await loadRewards(true);
+  };
+
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || typeFilter !== 'all';
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setCurrentPage(1);
+  };
+
+  const handleExportToCSV = () => {
+    if (filteredAndSorted.length === 0) {
+      return;
+    }
+
+    const headers = ['ID', 'Name', 'Type', 'Probability (%)', 'Stock', 'Status'];
+    const rows = filteredAndSorted.map((reward) => {
+      const status = getStatusDisplay(reward);
+      return [
+        reward.id,
+        reward.name,
+        reward.type,
+        (reward.probability * 100).toFixed(2),
+        reward.remaining,
+        status.label,
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rewards-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getStatistics = (): Statistics => {
+    const totalRewards = rewards.length;
+    const activeRewards = rewards.filter(r => r.isActive && r.remaining > 0).length;
+    const outOfStock = rewards.filter(r => r.remaining === 0).length;
+    const totalProbability = rewards.reduce((sum, r) => sum + r.probability, 0);
+
+    return {
+      totalRewards,
+      activeRewards,
+      outOfStock,
+      avgProbability: totalRewards > 0 ? ((totalProbability / totalRewards) * 100).toFixed(2) : '0.00',
+    };
+  };
+
+  const getStatusDisplay = (reward: AdminReward): StatusDisplay => {
+    if (reward.remaining === 0) {
+      return { label: 'Out of Stock', color: 'bg-red-100 text-red-800' };
+    }
+    if (reward.isActive) {
+      return { label: 'Active', color: 'bg-green-100 text-green-800' };
+    }
+    return { label: 'Inactive', color: 'bg-yellow-100 text-yellow-800' };
+  };
+
+  const sortRewards = (data: AdminReward[]) => {
+    return [...data].sort((a, b) => {
+      let aValue: any = a[sortState.field];
+      let bValue: any = b[sortState.field];
+
+      if (typeof aValue === 'string') {
+        aValue = aValue.toLowerCase();
+        bValue = (bValue as string).toLowerCase();
+      }
+
+      const comparison = aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
+      return sortState.order === 'asc' ? comparison : -comparison;
+    });
+  };
+
+  const filterRewards = (data: AdminReward[]) => {
+    let filtered = data;
+
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (reward) =>
+          reward.name.toLowerCase().includes(searchLower) ||
+          reward.id.toLowerCase().includes(searchLower) ||
+          reward.description.toLowerCase().includes(searchLower) ||
+          reward.type.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((reward) => {
+        if (statusFilter === 'active') {
+          return reward.isActive && reward.remaining > 0;
+        }
+        if (statusFilter === 'inactive') {
+          return !reward.isActive;
+        }
+        if (statusFilter === 'outofstock') {
+          return reward.remaining === 0;
+        }
+        return true;
+      });
+    }
+
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter((reward) => reward.type === typeFilter);
+    }
+
+    return filtered;
+  };
+
+  const filteredAndSorted = filterRewards(sortRewards(rewards));
+  const totalPages = Math.ceil(filteredAndSorted.length / ITEMS_PER_PAGE);
+  const paginatedRewards = filteredAndSorted.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const handleSort = (field: SortField) => {
+    setSortState((prev) => ({
+      field,
+      order: prev.field === field && prev.order === 'asc' ? 'desc' : 'asc',
+    }));
+    setCurrentPage(1);
+  };
+
+  const handleEdit = async (params: EditRewardParams) => {
+    try {
+      await updateReward(params);
+      await loadRewards();
+    } catch (err) {
+      console.error('Error updating reward:', err);
+    }
+  };
+
+  const handleDelete = async (rewardId: string) => {
+    try {
+      await deleteReward(rewardId);
+      await loadRewards();
+    } catch (err) {
+      console.error('Error deleting reward:', err);
+    }
+  };
+
+  const handleRefill = async (rewardId: string, amount: number) => {
+    try {
+      await refillRewardStock(rewardId, amount);
+      await loadRewards();
+    } catch (err) {
+      console.error('Error refilling stock:', err);
+    }
+  };
+
+  const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
+    <TableHead
+      className="cursor-pointer hover:bg-gray-50 select-none"
+      onClick={() => handleSort(field)}
+    >
+      <div className="flex items-center gap-2">
+        <span>{label}</span>
+        {sortState.field === field && (
+          sortState.order === 'asc' ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+        )}
+      </div>
+    </TableHead>
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg bg-red-50 border border-red-200 p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 4v2M6.343 3.665c-.256-.256-.256-.67 0-.926L8.41 1.59a.656.656 0 01.926 0l2.068 2.068a.656.656 0 010 .926L9.336 6.652a.656.656 0 01-.926 0L6.343 4.584z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-medium text-red-800">Error loading rewards</h3>
+            <p className="text-sm text-red-700 mt-2">{error}</p>
+            <div className="mt-4 flex gap-3">
+              <Button
+                onClick={() => loadRewards()}
+                variant="outline"
+                size="sm"
+                className="text-red-700 border-red-300 hover:bg-red-100"
+              >
+                Try Again
+              </Button>
+              <Button
+                onClick={() => {
+                  setError(null);
+                  setRewards([]);
+                }}
+                variant="ghost"
+                size="sm"
+                className="text-gray-600"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      {/* Mobile Card View */}
-      <div className="block sm:hidden space-y-3">
-        {mockRewards.map((reward) => (
-          <div key={reward.id} className="border rounded-lg p-4 bg-white">
-            <div className=\"flex justify-between items-start mb-2\">
-              <div>
-                <h3 className=\"font-medium text-sm\">{reward.name}</h3>
-                <p className=\"text-xs text-gray-500\">{reward.type}</p>
-              </div>
-              <div className=\"flex items-center gap-2\">
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  reward.status === 'Active' 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-yellow-100 text-yellow-800'
-                }`}>
-                  {reward.status}
-                </span>
-                <Button variant=\"ghost\" size=\"sm\" className=\"h-8 w-8 p-0\">
-                  <MoreHorizontal className=\"h-4 w-4\" />
-                </Button>
-              </div>
-            </div>
-            <div className=\"grid grid-cols-2 gap-4 text-xs\">
-              <div>
-                <span className=\"text-gray-500\">Claims:</span>
-                <span className=\"ml-1 font-medium\">{reward.claims}</span>
-              </div>
-              <div>
-                <span className=\"text-gray-500\">Remaining:</span>
-                <span className=\"ml-1 font-medium\">{reward.remaining}</span>
-              </div>
-            </div>
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Rewards Management</h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Manage rewards, stock levels, and probabilities</p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="flex items-center gap-2"
+              title="Reset all filters and search"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden sm:inline">Reset</span>
+            </Button>
+          )}
+          {!loading && filteredAndSorted.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportToCSV}
+              className="flex items-center gap-2"
+              title="Export data to CSV"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        </div>
+      </div>
+
+      {!loading && rewards.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          {(() => {
+            const stats = getStatistics();
+            return (
+              <>
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+                  <p className="text-xs text-blue-700 font-semibold">Total Rewards</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-blue-900 mt-1">{stats.totalRewards}</p>
+                </div>
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+                  <p className="text-xs text-green-700 font-semibold">Active</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-green-900 mt-1">{stats.activeRewards}</p>
+                </div>
+                <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-3 border border-red-200">
+                  <p className="text-xs text-red-700 font-semibold">Out of Stock</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-red-900 mt-1">{stats.outOfStock}</p>
+                </div>
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                  <p className="text-xs text-purple-700 font-semibold">Avg Probability</p>
+                  <p className="text-2xl sm:text-3xl font-bold text-purple-900 mt-1">{stats.avgProbability}%</p>
+                </div>
+              </>
+            );
+          })()}
+        </div>
+      )}
+
+      <div className="flex flex-col gap-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search by ID, name, type, or description... (Ctrl+K)"
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && searchTerm) {
+                setSearchTerm('');
+                setCurrentPage(1);
+              }
+            }}
+            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Search rewards"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setCurrentPage(1);
+              }}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              aria-label="Clear search"
+              title="Clear search (Esc)"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
+            <span className="text-xs font-semibold text-gray-600 w-full">Status:</span>
+            {(['all', 'active', 'inactive', 'outofstock'] as const).map((status) => (
+              <Button
+                key={status}
+                variant={statusFilter === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setStatusFilter(status);
+                  setCurrentPage(1);
+                }}
+                className="capitalize"
+                aria-pressed={statusFilter === status}
+                aria-label={`Filter by ${status === 'outofstock' ? 'out of stock' : status} status`}
+              >
+                {status === 'outofstock' ? 'Out of Stock' : status === 'all' ? 'All' : status}
+              </Button>
+            ))}
           </div>
-        ))}
+
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by rarity">
+            <span className="text-xs font-semibold text-gray-600 w-full">Rarity:</span>
+            {(['all', 'common', 'rare', 'epic', 'legendary'] as const).map((type) => (
+              <Button
+                key={type}
+                variant={typeFilter === type ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setTypeFilter(type);
+                  setCurrentPage(1);
+                }}
+                className="capitalize"
+                aria-pressed={typeFilter === type}
+                aria-label={`Filter by ${type === 'all' ? 'all types' : type} rarity`}
+              >
+                {type === 'all' ? 'All Types' : type}
+              </Button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Desktop Table View */}
-      <div className=\"hidden sm:block overflow-x-auto\">
-        <table className=\"w-full\">
-          <thead>
-            <tr className=\"border-b text-left\">
-              <th className=\"pb-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Name</th>
-              <th className=\"pb-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Type</th>
-              <th className=\"pb-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Status</th>
-              <th className=\"pb-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Claims</th>
-              <th className=\"pb-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Remaining</th>
-              <th className=\"pb-3 text-xs font-medium text-gray-500 uppercase tracking-wider\">Actions</th>
-            </tr>
-          </thead>
-          <tbody className=\"divide-y\">
-            {mockRewards.map((reward) => (
-              <tr key={reward.id} className=\"hover:bg-gray-50\">
-                <td className=\"py-4 text-sm font-medium text-gray-900\">{reward.name}</td>
-                <td className=\"py-4 text-sm text-gray-500\">{reward.type}</td>
-                <td className=\"py-4\">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                    reward.status === 'Active' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-yellow-100 text-yellow-800'
-                  }`}>
-                    {reward.status}
-                  </span>
-                </td>
-                <td className=\"py-4 text-sm text-gray-500\">{reward.claims}</td>
-                <td className=\"py-4 text-sm text-gray-500\">{reward.remaining}</td>
-                <td className=\"py-4\">
-                  <div className=\"flex items-center gap-2\">
-                    <Button variant=\"ghost\" size=\"sm\" className=\"h-8 w-8 p-0\">
-                      <Eye className=\"h-4 w-4\" />
-                    </Button>
-                    <Button variant=\"ghost\" size=\"sm\" className=\"h-8 w-8 p-0\">
-                      <Edit className=\"h-4 w-4\" />
-                    </Button>
-                    <Button variant=\"ghost\" size=\"sm\" className=\"h-8 w-8 p-0 text-red-600 hover:text-red-700\">
-                      <Trash2 className=\"h-4 w-4\" />
+      <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+        <Table>
+          <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
+            <TableRow className="hover:bg-gray-100/50">
+              <SortHeader field="id" label="ID" />
+              <SortHeader field="name" label="Name" />
+              <SortHeader field="type" label="Type" />
+              <SortHeader field="probability" label="Probability" />
+              <SortHeader field="remaining" label="Stock" />
+              <SortHeader field="status" label="Status" />
+              <TableHead className="w-[150px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginatedRewards.length > 0 ? (
+              paginatedRewards.map((reward, idx) => {
+                const status = getStatusDisplay(reward);
+                return (
+                  <TableRow key={reward.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <TableCell className="font-mono text-xs text-gray-600">{reward.id}</TableCell>
+                    <TableCell className="font-medium text-gray-900">{reward.name}</TableCell>
+                    <TableCell>
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full capitalize ${
+                        reward.type === 'common' ? 'bg-gray-100 text-gray-800' :
+                        reward.type === 'rare' ? 'bg-blue-100 text-blue-800' :
+                        reward.type === 'epic' ? 'bg-purple-100 text-purple-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {reward.type}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm font-medium text-gray-700">{(reward.probability * 100).toFixed(2)}%</TableCell>
+                    <TableCell className={`text-sm font-bold ${
+                      reward.remaining === 0 ? 'text-red-600' : 
+                      reward.remaining < 10 ? 'text-orange-600' : 'text-green-600'
+                    }`}>{reward.remaining}</TableCell>
+                    <TableCell>
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${status.color}`}>
+                        {status.label}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-blue-100"
+                          onClick={() => {
+                            setSelectedReward(reward);
+                            setEditDialogOpen(true);
+                          }}
+                          title="Edit reward"
+                        >
+                          <Edit className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-green-100"
+                          onClick={() => {
+                            setSelectedReward(reward);
+                            setRefillDialogOpen(true);
+                          }}
+                          title="Refill stock"
+                        >
+                          <PackagePlus className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-red-100"
+                          onClick={() => {
+                            setSelectedReward(reward);
+                            setDeleteDialogOpen(true);
+                          }}
+                          title="Delete reward"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            ) : (
+              <TableRow>
+                <TableCell colSpan={7} className="text-center py-12">
+                  <div className="flex flex-col items-center gap-2">
+                    <svg className="h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    </svg>
+                    <p className="text-gray-500 font-medium">No rewards found</p>
+                    <p className="text-sm text-gray-400">Try adjusting your search or filters</p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="block sm:hidden space-y-3">
+        {paginatedRewards.length > 0 ? (
+          paginatedRewards.map((reward) => {
+            const status = getStatusDisplay(reward);
+            return (
+              <div key={reward.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex-1">
+                    <p className="text-xs font-mono text-gray-500 mb-1">ID: {reward.id}</p>
+                    <h3 className="font-semibold text-sm text-gray-900">{reward.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${
+                        reward.type === 'common' ? 'bg-gray-100 text-gray-800' :
+                        reward.type === 'rare' ? 'bg-blue-100 text-blue-800' :
+                        reward.type === 'epic' ? 'bg-purple-100 text-purple-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {reward.type}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-1 text-xs rounded-full font-semibold ${status.color}`}>{status.label}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-xs mb-3 p-3 bg-gray-50 rounded">
+                  <div>
+                    <span className="text-gray-500 text-xs">Probability:</span>
+                    <span className="ml-1 font-bold block text-gray-900">{(reward.probability * 100).toFixed(2)}%</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs">Stock:</span>
+                    <span className={`ml-1 font-bold block ${
+                      reward.remaining === 0 ? 'text-red-600' : 
+                      reward.remaining < 10 ? 'text-orange-600' : 'text-green-600'
+                    }`}>{reward.remaining}</span>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-9 text-blue-600 border-blue-200 hover:bg-blue-50"
+                    onClick={() => {
+                      setSelectedReward(reward);
+                      setEditDialogOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-9 text-green-600 border-green-200 hover:bg-green-50"
+                    onClick={() => {
+                      setSelectedReward(reward);
+                      setRefillDialogOpen(true);
+                    }}
+                  >
+                    <PackagePlus className="h-4 w-4 mr-2" />
+                    Refill
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 h-9 text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={() => {
+                      setSelectedReward(reward);
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          <div className="text-center py-12 px-4">
+            <svg className="h-16 w-16 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+            <p className="text-gray-500 font-medium text-base">No rewards found</p>
+            <p className="text-sm text-gray-400 mt-1">Try adjusting your search or filters</p>
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 p-4 border-t">
+          <div className="text-sm text-gray-600">
+            Showing {Math.min((currentPage - 1) * ITEMS_PER_PAGE + 1, filteredAndSorted.length)} to{' '}
+            {Math.min(currentPage * ITEMS_PER_PAGE, filteredAndSorted.length)} of {filteredAndSorted.length} results
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((page) => {
+                  const distance = Math.abs(page - currentPage);
+                  return distance === 0 || distance === 1 || page === 1 || page === totalPages;
+                })
+                .map((page, idx, arr) => (
+                  <div key={page}>
+                    {idx > 0 && arr[idx - 1] !== page - 1 && <span className="px-1 text-gray-400">...</span>}
+                    <Button
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
                     </Button>
                   </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Action Dialogs */}
+      <EditRewardDialog open={editDialogOpen} onOpenChange={setEditDialogOpen} reward={selectedReward} onEdit={handleEdit} />
+      <DeleteRewardDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen} reward={selectedReward} onDelete={handleDelete} />
+      <RefillStockDialog open={refillDialogOpen} onOpenChange={setRefillDialogOpen} reward={selectedReward} onRefill={handleRefill} />
     </div>
   );
 }
