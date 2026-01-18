@@ -223,16 +223,23 @@ export function RewardTable() {
 
       <div className="flex flex-col gap-4">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
           <input
             type="text"
-            placeholder="Search by ID, name, type, or description..."
+            placeholder="Search by ID, name, type, or description... (Ctrl+K)"
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && searchTerm) {
+                setSearchTerm('');
+                setCurrentPage(1);
+              }
+            }}
             className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Search rewards"
           />
           {searchTerm && (
             <button
@@ -240,7 +247,9 @@ export function RewardTable() {
                 setSearchTerm('');
                 setCurrentPage(1);
               }}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              aria-label="Clear search"
+              title="Clear search (Esc)"
             >
               <X className="h-4 w-4" />
             </button>
@@ -248,7 +257,7 @@ export function RewardTable() {
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
             <span className="text-xs font-semibold text-gray-600 w-full">Status:</span>
             {(['all', 'active', 'inactive', 'outofstock'] as const).map((status) => (
               <Button
@@ -260,13 +269,15 @@ export function RewardTable() {
                   setCurrentPage(1);
                 }}
                 className="capitalize"
+                aria-pressed={statusFilter === status}
+                aria-label={`Filter by ${status === 'outofstock' ? 'out of stock' : status} status`}
               >
                 {status === 'outofstock' ? 'Out of Stock' : status === 'all' ? 'All' : status}
               </Button>
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by rarity">
             <span className="text-xs font-semibold text-gray-600 w-full">Rarity:</span>
             {(['all', 'common', 'rare', 'epic', 'legendary'] as const).map((type) => (
               <Button
@@ -278,6 +289,8 @@ export function RewardTable() {
                   setCurrentPage(1);
                 }}
                 className="capitalize"
+                aria-pressed={typeFilter === type}
+                aria-label={`Filter by ${type === 'all' ? 'all types' : type} rarity`}
               >
                 {type === 'all' ? 'All Types' : type}
               </Button>
