@@ -8,6 +8,11 @@ contract SmetHero is ERC721, Ownable {
     string private _baseTokenURI;
     address public minter;
 
+    modifier onlyMinter() {
+        require(msg.sender == minter, "Only minter can call this function");
+        _;
+    }
+
     constructor(string memory baseURI) ERC721("SmetHero", "SHERO") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
     }
