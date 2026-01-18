@@ -26,6 +26,7 @@ export function RewardTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortState, setSortState] = useState<SortState>({ field: 'id', order: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'outofstock'>('all');
 
   const [selectedReward, setSelectedReward] = useState<AdminReward | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -76,15 +77,35 @@ export function RewardTable() {
   };
 
   const filterRewards = (data: AdminReward[]) => {
-    if (!searchTerm) return data;
-    const searchLower = searchTerm.toLowerCase();
-    return data.filter(
-      (reward) =>
-        reward.name.toLowerCase().includes(searchLower) ||
-        reward.id.toLowerCase().includes(searchLower) ||
-        reward.description.toLowerCase().includes(searchLower) ||
-        reward.type.toLowerCase().includes(searchLower)
-    );
+    let filtered = data;
+
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(
+        (reward) =>
+          reward.name.toLowerCase().includes(searchLower) ||
+          reward.id.toLowerCase().includes(searchLower) ||
+          reward.description.toLowerCase().includes(searchLower) ||
+          reward.type.toLowerCase().includes(searchLower)
+      );
+    }
+
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter((reward) => {
+        if (statusFilter === 'active') {
+          return reward.isActive && reward.remaining > 0;
+        }
+        if (statusFilter === 'inactive') {
+          return !reward.isActive;
+        }
+        if (statusFilter === 'outofstock') {
+          return reward.remaining === 0;
+        }
+        return true;
+      });
+    }
+
+    return filtered;
   };
 
   const filteredAndSorted = filterRewards(sortRewards(rewards));
@@ -189,6 +210,23 @@ export function RewardTable() {
               <X className="h-4 w-4" />
             </button>
           )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {(['all', 'active', 'inactive', 'outofstock'] as const).map((status) => (
+            <Button
+              key={status}
+              variant={statusFilter === status ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setStatusFilter(status);
+                setCurrentPage(1);
+              }}
+              className="capitalize"
+            >
+              {status === 'outofstock' ? 'Out of Stock' : status === 'all' ? 'All Rewards' : status}
+            </Button>
+          ))}
         </div>
       </div>
 
