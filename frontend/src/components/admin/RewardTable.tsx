@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X } from 'lucide-react';
+import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X, RefreshCw } from 'lucide-react';
 import { AdminReward, fetchAdminRewards, updateReward, deleteReward, refillRewardStock } from '@/services/adminRewards';
 import { EditRewardDialog } from './EditRewardDialog';
 import { DeleteRewardDialog } from './DeleteRewardDialog';
@@ -23,6 +23,7 @@ export function RewardTable() {
   const [rewards, setRewards] = useState<AdminReward[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortState, setSortState] = useState<SortState>({ field: 'id', order: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
@@ -38,9 +39,13 @@ export function RewardTable() {
     loadRewards();
   }, []);
 
-  const loadRewards = async () => {
+  const loadRewards = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setIsRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       setError(null);
       const data = await fetchAdminRewards();
       setRewards(data);
@@ -48,8 +53,16 @@ export function RewardTable() {
       setError(err instanceof Error ? err.message : 'Failed to load rewards');
       console.error('Error loading rewards:', err);
     } finally {
-      setLoading(false);
+      if (isRefresh) {
+        setIsRefreshing(false);
+      } else {
+        setLoading(false);
+      }
     }
+  };
+
+  const handleRefresh = async () => {
+    await loadRewards(true);
   };
 
   const getStatusDisplay = (reward: AdminReward) => {
@@ -191,6 +204,23 @@ export function RewardTable() {
 
   return (
     <div className="space-y-4">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Rewards Management</h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Manage rewards, stock levels, and probabilities</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
+        </Button>
+      </div>
+
       <div className="flex flex-col gap-4">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
