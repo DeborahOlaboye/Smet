@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X, RefreshCw, RotateCcw, Download } from 'lucide-react';
-import { AdminReward, fetchAdminRewards, updateReward, deleteReward, refillRewardStock } from '@/services/adminRewards';
+import { AdminReward, fetchAdminRewards, updateReward, deleteReward, refillRewardStock, EditRewardParams } from '@/services/adminRewards';
 import { EditRewardDialog } from './EditRewardDialog';
 import { DeleteRewardDialog } from './DeleteRewardDialog';
 import { RefillStockDialog } from './RefillStockDialog';
@@ -11,10 +11,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 
 type SortField = 'id' | 'name' | 'type' | 'probability' | 'remaining' | 'status';
 type SortOrder = 'asc' | 'desc';
+type StatusFilter = 'all' | 'active' | 'inactive' | 'outofstock';
+type TypeFilter = 'all' | 'common' | 'rare' | 'epic' | 'legendary';
 
 interface SortState {
   field: SortField;
   order: SortOrder;
+}
+
+interface StatusDisplay {
+  label: string;
+  color: string;
+}
+
+interface Statistics {
+  totalRewards: number;
+  activeRewards: number;
+  outOfStock: number;
+  avgProbability: string;
 }
 
 const ITEMS_PER_PAGE = 10;
@@ -27,8 +41,8 @@ export function RewardTable() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortState, setSortState] = useState<SortState>({ field: 'id', order: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'outofstock'>('all');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   const [selectedReward, setSelectedReward] = useState<AdminReward | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -108,7 +122,7 @@ export function RewardTable() {
     document.body.removeChild(link);
   };
 
-  const getStatistics = () => {
+  const getStatistics = (): Statistics => {
     const totalRewards = rewards.length;
     const activeRewards = rewards.filter(r => r.isActive && r.remaining > 0).length;
     const outOfStock = rewards.filter(r => r.remaining === 0).length;
@@ -122,7 +136,7 @@ export function RewardTable() {
     };
   };
 
-  const getStatusDisplay = (reward: AdminReward) => {
+  const getStatusDisplay = (reward: AdminReward): StatusDisplay => {
     if (reward.remaining === 0) {
       return { label: 'Out of Stock', color: 'bg-red-100 text-red-800' };
     }
@@ -198,7 +212,7 @@ export function RewardTable() {
     setCurrentPage(1);
   };
 
-  const handleEdit = async (params: any) => {
+  const handleEdit = async (params: EditRewardParams) => {
     try {
       await updateReward(params);
       await loadRewards();
