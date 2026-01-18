@@ -8,9 +8,17 @@ import "./TransactionHistory.sol";
 contract SmetLoot is ERC1155, CircuitBreaker, Ownable {
     TransactionHistory public transactionHistory;
     address public minter;
+
+    event MinterSet(address indexed newMinter);
     
     constructor(address _transactionHistory) ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {
         transactionHistory = TransactionHistory(_transactionHistory);
+    }
+
+    function setMinter(address _minter) external onlyOwner {
+        require(_minter != address(0), "Invalid minter address");
+        minter = _minter;
+        emit MinterSet(_minter);
     }
 
     function mint(address to, uint256 id, uint256 amount) external circuitBreakerCheck(this.mint.selector) {
