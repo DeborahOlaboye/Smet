@@ -206,12 +206,39 @@ export function RewardTable() {
 
   if (error) {
     return (
-      <div className="rounded-lg bg-red-50 border border-red-200 p-4">
-        <p className="text-sm font-medium text-red-800">Error loading rewards</p>
-        <p className="text-sm text-red-700 mt-1">{error}</p>
-        <Button onClick={loadRewards} variant="outline" size="sm" className="mt-4">
-          Retry
-        </Button>
+      <div className="rounded-lg bg-red-50 border border-red-200 p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0">
+            <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 4v2M6.343 3.665c-.256-.256-.256-.67 0-.926L8.41 1.59a.656.656 0 01.926 0l2.068 2.068a.656.656 0 010 .926L9.336 6.652a.656.656 0 01-.926 0L6.343 4.584z" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-medium text-red-800">Error loading rewards</h3>
+            <p className="text-sm text-red-700 mt-2">{error}</p>
+            <div className="mt-4 flex gap-3">
+              <Button
+                onClick={() => loadRewards()}
+                variant="outline"
+                size="sm"
+                className="text-red-700 border-red-300 hover:bg-red-100"
+              >
+                Try Again
+              </Button>
+              <Button
+                onClick={() => {
+                  setError(null);
+                  setRewards([]);
+                }}
+                variant="ghost"
+                size="sm"
+                className="text-gray-600"
+              >
+                Dismiss
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
