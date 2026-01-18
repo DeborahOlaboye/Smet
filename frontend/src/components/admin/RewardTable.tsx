@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X, RefreshCw, RotateCcw } from 'lucide-react';
+import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X, RefreshCw, RotateCcw, Download } from 'lucide-react';
 import { AdminReward, fetchAdminRewards, updateReward, deleteReward, refillRewardStock } from '@/services/adminRewards';
 import { EditRewardDialog } from './EditRewardDialog';
 import { DeleteRewardDialog } from './DeleteRewardDialog';
@@ -72,6 +72,40 @@ export function RewardTable() {
     setStatusFilter('all');
     setTypeFilter('all');
     setCurrentPage(1);
+  };
+
+  const handleExportToCSV = () => {
+    if (filteredAndSorted.length === 0) {
+      return;
+    }
+
+    const headers = ['ID', 'Name', 'Type', 'Probability (%)', 'Stock', 'Status'];
+    const rows = filteredAndSorted.map((reward) => {
+      const status = getStatusDisplay(reward);
+      return [
+        reward.id,
+        reward.name,
+        reward.type,
+        (reward.probability * 100).toFixed(2),
+        reward.remaining,
+        status.label,
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `rewards-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getStatistics = () => {
@@ -259,7 +293,7 @@ export function RewardTable() {
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">Rewards Management</h2>
           <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Manage rewards, stock levels, and probabilities</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {hasActiveFilters && (
             <Button
               variant="outline"
@@ -270,6 +304,18 @@ export function RewardTable() {
             >
               <RotateCcw className="h-4 w-4" />
               <span className="hidden sm:inline">Reset</span>
+            </Button>
+          )}
+          {!loading && filteredAndSorted.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportToCSV}
+              className="flex items-center gap-2"
+              title="Export data to CSV"
+            >
+              <Download className="h-4 w-4" />
+              <span className="hidden sm:inline">Export</span>
             </Button>
           )}
           <Button
