@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./CircuitBreaker.sol";
 import "./TransactionHistory.sol";
 
-contract SmetLoot is ERC1155, CircuitBreaker {
+contract SmetLoot is ERC1155, CircuitBreaker, Ownable {
     TransactionHistory public transactionHistory;
+    address public minter;
     
-    constructor(address _transactionHistory) ERC1155("https://loot.example/{id}.json") {
+    constructor(address _transactionHistory) ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {
         transactionHistory = TransactionHistory(_transactionHistory);
     }
 
