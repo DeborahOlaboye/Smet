@@ -6,12 +6,38 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract SmetHero is ERC721, Ownable {
     uint256 public nextId = 1;
     string private _baseTokenURI;
+    address public minter;
+
+    event MinterSet(address indexed newMinter);
+
+    modifier onlyMinter() {
+        require(msg.sender == minter, "Only minter can call this function");
+        _;
+    }
+
+    /**
+     * @dev Access Control Implementation - Issue #89
+     * The contract implements strict access control on the mint function to prevent
+     * unauthorized token creation that could break the game economy.
+     *
+     * Only the authorized minter address (set to SmetReward contract) can create new tokens.
+     * This prevents public mint calls and ensures all hero NFTs are minted through the
+     * official reward system.
+     *
+     * Owner can update the minter address via setMinter() function.
+     */
 
     constructor(string memory baseURI) ERC721("SmetHero", "SHERO") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
     }
 
-    function mint(address to) external circuitBreakerCheck(this.mint.selector) returns (uint256 id) {
+    function setMinter(address _minter) external onlyOwner {
+        require(_minter != address(0), "Invalid minter address");
+        minter = _minter;
+        emit MinterSet(_minter);
+    }
+
+    function mint(address to) external onlyMinter circuitBreakerCheck(this.mint.selector) returns (uint256 id) {
         id = nextId++;
         totalMinted++;
         _safeMint(to, id);

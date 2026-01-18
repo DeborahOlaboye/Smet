@@ -1,17 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "./CircuitBreaker.sol";
 import "./TransactionHistory.sol";
 
-contract SmetLoot is ERC1155, CircuitBreaker {
+contract SmetLoot is ERC1155, CircuitBreaker, Ownable {
     TransactionHistory public transactionHistory;
+    address public minter;
+
+    event MinterSet(address indexed newMinter);
+
+    modifier onlyMinter() {
+        require(msg.sender == minter, "Only minter can call this function");
+        _;
+    }
+
+    /**
+     * @dev Access Control Implementation - Issue #89
+     * The contract implements strict access control on the mint function to prevent
+     * unauthorized loot item creation that could break the reward economy.
+     *
+     * Only the authorized minter address (set to SmetReward contract) can create new items.
+     * This prevents public mint calls and ensures all loot items are created through the
+     * official reward system.
+     *
+     * Owner can update the minter address via setMinter() function.
+     */
     
-    constructor(address _transactionHistory) ERC1155("https://loot.example/{id}.json") {
+    constructor(address _transactionHistory) ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {
         transactionHistory = TransactionHistory(_transactionHistory);
     }
 
-    function mint(address to, uint256 id, uint256 amount) external circuitBreakerCheck(this.mint.selector) {
+    function setMinter(address _minter) external onlyOwner {
+        require(_minter != address(0), "Invalid minter address");
+        minter = _minter;
+        emit MinterSet(_minter);
+    }
+
+    function mint(address to, uint256 id, uint256 amount) external onlyMinter circuitBreakerCheck(this.mint.selector) {
         _mint(to, id, amount, "");
         
         transactionHistory.recordTransaction(
