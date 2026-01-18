@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X } from 'lucide-react';
 import { AdminReward, fetchAdminRewards, updateReward, deleteReward, refillRewardStock } from '@/services/adminRewards';
 import { EditRewardDialog } from './EditRewardDialog';
 import { DeleteRewardDialog } from './DeleteRewardDialog';
@@ -166,16 +166,30 @@ export function RewardTable() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-4">
-        <input
-          type="text"
-          placeholder="Search by ID or name..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by ID, name, type, or description..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => {
+                setSearchTerm('');
+                setCurrentPage(1);
+              }}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Desktop Table View */}
