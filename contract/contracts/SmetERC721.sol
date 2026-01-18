@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract SmetHero is ERC721, Ownable {
     uint256 public nextId = 1;
     string private _baseTokenURI;
+    address public minter;
 
     constructor(string memory baseURI) ERC721("SmetHero", "SHERO") Ownable(msg.sender) {
         _baseTokenURI = baseURI;
