@@ -10,6 +10,11 @@ contract SmetLoot is ERC1155, CircuitBreaker, Ownable {
     address public minter;
 
     event MinterSet(address indexed newMinter);
+
+    modifier onlyMinter() {
+        require(msg.sender == minter, "Only minter can call this function");
+        _;
+    }
     
     constructor(address _transactionHistory) ERC1155("https://loot.example/{id}.json") Ownable(msg.sender) {
         transactionHistory = TransactionHistory(_transactionHistory);
