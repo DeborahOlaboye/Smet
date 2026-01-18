@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X, RefreshCw } from 'lucide-react';
+import { ChevronUp, ChevronDown, Edit, Trash2, PackagePlus, Loader2, Search, X, RefreshCw, RotateCcw } from 'lucide-react';
 import { AdminReward, fetchAdminRewards, updateReward, deleteReward, refillRewardStock } from '@/services/adminRewards';
 import { EditRewardDialog } from './EditRewardDialog';
 import { DeleteRewardDialog } from './DeleteRewardDialog';
@@ -63,6 +63,15 @@ export function RewardTable() {
 
   const handleRefresh = async () => {
     await loadRewards(true);
+  };
+
+  const hasActiveFilters = searchTerm !== '' || statusFilter !== 'all' || typeFilter !== 'all';
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setTypeFilter('all');
+    setCurrentPage(1);
   };
 
   const getStatistics = () => {
@@ -245,21 +254,35 @@ export function RewardTable() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <div>
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">Rewards Management</h2>
           <p className="text-xs sm:text-sm text-gray-600 mt-0.5">Manage rewards, stock levels, and probabilities</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">Refresh</span>
-        </Button>
+        <div className="flex gap-2">
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleResetFilters}
+              className="flex items-center gap-2"
+              title="Reset all filters and search"
+            >
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden sm:inline">Reset</span>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        </div>
       </div>
 
       {!loading && rewards.length > 0 && (
