@@ -257,10 +257,10 @@ export function RewardTable() {
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden sm:block overflow-x-auto rounded-lg border">
+      <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
         <Table>
-          <TableHeader className="bg-gray-50">
-            <TableRow>
+          <TableHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-200">
+            <TableRow className="hover:bg-gray-100/50">
               <SortHeader field="id" label="ID" />
               <SortHeader field="name" label="Name" />
               <SortHeader field="type" label="Type" />
@@ -272,19 +272,27 @@ export function RewardTable() {
           </TableHeader>
           <TableBody>
             {paginatedRewards.length > 0 ? (
-              paginatedRewards.map((reward) => {
+              paginatedRewards.map((reward, idx) => {
                 const status = getStatusDisplay(reward);
                 return (
-                  <TableRow key={reward.id}>
-                    <TableCell className="font-mono text-xs">{reward.id}</TableCell>
-                    <TableCell className="font-medium">{reward.name}</TableCell>
+                  <TableRow key={reward.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <TableCell className="font-mono text-xs text-gray-600">{reward.id}</TableCell>
+                    <TableCell className="font-medium text-gray-900">{reward.name}</TableCell>
                     <TableCell>
-                      <span className="inline-block px-2 py-1 text-xs font-semibold rounded-full capitalize bg-gray-100 text-gray-800">
+                      <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full capitalize ${
+                        reward.type === 'common' ? 'bg-gray-100 text-gray-800' :
+                        reward.type === 'rare' ? 'bg-blue-100 text-blue-800' :
+                        reward.type === 'epic' ? 'bg-purple-100 text-purple-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
                         {reward.type}
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm">{(reward.probability * 100).toFixed(2)}%</TableCell>
-                    <TableCell className="text-sm font-medium">{reward.remaining}</TableCell>
+                    <TableCell className="text-sm font-medium text-gray-700">{(reward.probability * 100).toFixed(2)}%</TableCell>
+                    <TableCell className={`text-sm font-bold ${
+                      reward.remaining === 0 ? 'text-red-600' : 
+                      reward.remaining < 10 ? 'text-orange-600' : 'text-green-600'
+                    }`}>{reward.remaining}</TableCell>
                     <TableCell>
                       <span className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${status.color}`}>
                         {status.label}
@@ -295,35 +303,38 @@ export function RewardTable() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 hover:bg-blue-100"
                           onClick={() => {
                             setSelectedReward(reward);
                             setEditDialogOpen(true);
                           }}
+                          title="Edit reward"
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4 text-blue-600" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="h-8 w-8 p-0 hover:bg-green-100"
                           onClick={() => {
                             setSelectedReward(reward);
                             setRefillDialogOpen(true);
                           }}
+                          title="Refill stock"
                         >
-                          <PackagePlus className="h-4 w-4" />
+                          <PackagePlus className="h-4 w-4 text-green-600" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                          className="h-8 w-8 p-0 hover:bg-red-100"
                           onClick={() => {
                             setSelectedReward(reward);
                             setDeleteDialogOpen(true);
                           }}
+                          title="Delete reward"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 text-red-600" />
                         </Button>
                       </div>
                     </TableCell>
@@ -347,30 +358,42 @@ export function RewardTable() {
           paginatedRewards.map((reward) => {
             const status = getStatusDisplay(reward);
             return (
-              <div key={reward.id} className="border rounded-lg p-4 bg-white">
+              <div key={reward.id} className="border border-gray-200 rounded-lg p-4 bg-white shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-3">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-xs font-mono text-gray-500 mb-1">ID: {reward.id}</p>
-                    <h3 className="font-medium text-sm">{reward.name}</h3>
-                    <p className="text-xs text-gray-500 mt-1">{reward.type}</p>
+                    <h3 className="font-semibold text-sm text-gray-900">{reward.name}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`inline-block px-2 py-0.5 text-xs font-semibold rounded-full capitalize ${
+                        reward.type === 'common' ? 'bg-gray-100 text-gray-800' :
+                        reward.type === 'rare' ? 'bg-blue-100 text-blue-800' :
+                        reward.type === 'epic' ? 'bg-purple-100 text-purple-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {reward.type}
+                      </span>
+                    </div>
                   </div>
-                  <span className={`px-2 py-1 text-xs rounded-full ${status.color}`}>{status.label}</span>
+                  <span className={`px-2 py-1 text-xs rounded-full font-semibold ${status.color}`}>{status.label}</span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-xs mb-3">
+                <div className="grid grid-cols-2 gap-4 text-xs mb-3 p-3 bg-gray-50 rounded">
                   <div>
-                    <span className="text-gray-500">Probability:</span>
-                    <span className="ml-1 font-medium block">{(reward.probability * 100).toFixed(2)}%</span>
+                    <span className="text-gray-500 text-xs">Probability:</span>
+                    <span className="ml-1 font-bold block text-gray-900">{(reward.probability * 100).toFixed(2)}%</span>
                   </div>
                   <div>
-                    <span className="text-gray-500">Stock:</span>
-                    <span className="ml-1 font-medium block">{reward.remaining}</span>
+                    <span className="text-gray-500 text-xs">Stock:</span>
+                    <span className={`ml-1 font-bold block ${
+                      reward.remaining === 0 ? 'text-red-600' : 
+                      reward.remaining < 10 ? 'text-orange-600' : 'text-green-600'
+                    }`}>{reward.remaining}</span>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="flex-1 h-8"
+                    className="flex-1 h-9 text-blue-600 border-blue-200 hover:bg-blue-50"
                     onClick={() => {
                       setSelectedReward(reward);
                       setEditDialogOpen(true);
@@ -380,9 +403,9 @@ export function RewardTable() {
                     Edit
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="flex-1 h-8"
+                    className="flex-1 h-9 text-green-600 border-green-200 hover:bg-green-50"
                     onClick={() => {
                       setSelectedReward(reward);
                       setRefillDialogOpen(true);
@@ -392,9 +415,9 @@ export function RewardTable() {
                     Refill
                   </Button>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
-                    className="flex-1 h-8 text-red-600"
+                    className="flex-1 h-9 text-red-600 border-red-200 hover:bg-red-50"
                     onClick={() => {
                       setSelectedReward(reward);
                       setDeleteDialogOpen(true);
