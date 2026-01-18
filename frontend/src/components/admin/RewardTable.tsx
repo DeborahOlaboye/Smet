@@ -77,10 +77,13 @@ export function RewardTable() {
 
   const filterRewards = (data: AdminReward[]) => {
     if (!searchTerm) return data;
+    const searchLower = searchTerm.toLowerCase();
     return data.filter(
       (reward) =>
-        reward.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        reward.id.toLowerCase().includes(searchTerm.toLowerCase())
+        reward.name.toLowerCase().includes(searchLower) ||
+        reward.id.toLowerCase().includes(searchLower) ||
+        reward.description.toLowerCase().includes(searchLower) ||
+        reward.type.toLowerCase().includes(searchLower)
     );
   };
 
