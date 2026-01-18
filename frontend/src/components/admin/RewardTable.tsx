@@ -27,6 +27,7 @@ export function RewardTable() {
   const [sortState, setSortState] = useState<SortState>({ field: 'id', order: 'asc' });
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'outofstock'>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'common' | 'rare' | 'epic' | 'legendary'>('all');
 
   const [selectedReward, setSelectedReward] = useState<AdminReward | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -103,6 +104,10 @@ export function RewardTable() {
         }
         return true;
       });
+    }
+
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter((reward) => reward.type === typeFilter);
     }
 
     return filtered;
@@ -212,21 +217,42 @@ export function RewardTable() {
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          {(['all', 'active', 'inactive', 'outofstock'] as const).map((status) => (
-            <Button
-              key={status}
-              variant={statusFilter === status ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setStatusFilter(status);
-                setCurrentPage(1);
-              }}
-              className="capitalize"
-            >
-              {status === 'outofstock' ? 'Out of Stock' : status === 'all' ? 'All Rewards' : status}
-            </Button>
-          ))}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs font-semibold text-gray-600 w-full">Status:</span>
+            {(['all', 'active', 'inactive', 'outofstock'] as const).map((status) => (
+              <Button
+                key={status}
+                variant={statusFilter === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setStatusFilter(status);
+                  setCurrentPage(1);
+                }}
+                className="capitalize"
+              >
+                {status === 'outofstock' ? 'Out of Stock' : status === 'all' ? 'All' : status}
+              </Button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs font-semibold text-gray-600 w-full">Rarity:</span>
+            {(['all', 'common', 'rare', 'epic', 'legendary'] as const).map((type) => (
+              <Button
+                key={type}
+                variant={typeFilter === type ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  setTypeFilter(type);
+                  setCurrentPage(1);
+                }}
+                className="capitalize"
+              >
+                {type === 'all' ? 'All Types' : type}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
 
