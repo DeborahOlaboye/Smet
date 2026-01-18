@@ -8,6 +8,8 @@ contract SmetHero is ERC721, Ownable {
     string private _baseTokenURI;
     address public minter;
 
+    event MinterSet(address indexed newMinter);
+
     modifier onlyMinter() {
         require(msg.sender == minter, "Only minter can call this function");
         _;
@@ -20,9 +22,10 @@ contract SmetHero is ERC721, Ownable {
     function setMinter(address _minter) external onlyOwner {
         require(_minter != address(0), "Invalid minter address");
         minter = _minter;
+        emit MinterSet(_minter);
     }
 
-    function mint(address to) external circuitBreakerCheck(this.mint.selector) returns (uint256 id) {
+    function mint(address to) external onlyMinter circuitBreakerCheck(this.mint.selector) returns (uint256 id) {
         id = nextId++;
         totalMinted++;
         _safeMint(to, id);
