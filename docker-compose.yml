@@ -1,0 +1,61 @@
+# Smet Card Components - Docker Compose
+
+version: '3.8'
+
+services:
+  # Development environment
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "3000:3000"
+      - "6006:6006"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - smet-network
+    restart: unless-stopped
+    command: ["tail", "-f", "/dev/null"]  # Keep container running
+
+  # Storybook (for component development)
+  storybook:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    ports:
+      - "6007:6006"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    networks:
+      - smet-network
+    restart: unless-stopped
+    command: ["npx", "storybook", "dev", "-p", "6006", "--host", "0.0.0.0"]
+    depends_on:
+      - dev
+
+  # Documentation server
+  docs:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docs:/usr/share/nginx/html
+    networks:
+      - smet-network
+    restart: unless-stopped
+
+volumes:
+  node_modules:
+
+networks:
+  smet-network:
+    driver: bridge
