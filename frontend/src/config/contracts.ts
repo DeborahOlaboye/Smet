@@ -10,14 +10,7 @@ export const CONTRACT_ADDRESSES = {
 export const REWARD_CONTRACT_ADDRESS = CONTRACT_ADDRESSES.SmetReward;
 export const REWARD_CONTRACT_ABI = SMET_REWARD_ABI;
 
-export { ERC20_ABI };
-
-export const ERC721_ABI = [
-  'function balanceOf(address owner) view returns (uint256)',
-  'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
-  'function tokenURI(uint256 tokenId) view returns (string)',
-  'function ownerOf(uint256 tokenId) view returns (address)',
-] as const;
+export { ERC20_ABI, ERC721_ABI };
 
 export const ERC1155_ABI = [
   'function balanceOf(address account, uint256 id) view returns (uint256)',
