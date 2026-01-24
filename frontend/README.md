@@ -44,3 +44,11 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 - Jest + React Testing Library have been added for unit and integration tests.
 - Run Jest locally with `npm run test:jest` or `npm run test:jest:coverage` to see coverage reports.
 - CI uploads coverage to Codecov and stores a coverage artifact.
+
+## Contract Interaction
+
+Contract ABIs are synced from the `contract` directory. If you update the smart contracts, run the following command in the `frontend` directory to update the ABIs:
+
+```bash
+npm run sync:abis
+```
