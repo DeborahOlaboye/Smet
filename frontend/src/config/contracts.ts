@@ -1,4 +1,4 @@
-import { SMET_REWARD_ABI } from './abis';
+import { SMET_REWARD_ABI, ERC20_ABI, ERC721_ABI, ERC1155_ABI } from '@/contracts/abis';
 
 export const CONTRACT_ADDRESSES = {
   SmetGold: '0x0A8862B2d93105b6BD63ee2c9343E7966872a3D2' as `0x${string}`,
@@ -10,22 +10,4 @@ export const CONTRACT_ADDRESSES = {
 export const REWARD_CONTRACT_ADDRESS = CONTRACT_ADDRESSES.SmetReward;
 export const REWARD_CONTRACT_ABI = SMET_REWARD_ABI;
 
-export const ERC20_ABI = [
-  'function balanceOf(address owner) view returns (uint256)',
-  'function name() view returns (string)',
-  'function symbol() view returns (string)',
-  'function decimals() view returns (uint8)',
-] as const;
-
-export const ERC721_ABI = [
-  'function balanceOf(address owner) view returns (uint256)',
-  'function tokenOfOwnerByIndex(address owner, uint256 index) view returns (uint256)',
-  'function tokenURI(uint256 tokenId) view returns (string)',
-  'function ownerOf(uint256 tokenId) view returns (address)',
-] as const;
-
-export const ERC1155_ABI = [
-  'function balanceOf(address account, uint256 id) view returns (uint256)',
-  'function balanceOfBatch(address[] accounts, uint256[] ids) view returns (uint256[])',
-  'function uri(uint256 id) view returns (string)',
-] as const;
+export { ERC20_ABI, ERC721_ABI, ERC1155_ABI };
