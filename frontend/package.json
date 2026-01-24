@@ -11,7 +11,8 @@
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "sync:abis": "node ../scripts/sync-abis.js"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.16",
