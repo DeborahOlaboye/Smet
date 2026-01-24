@@ -1,4 +1,4 @@
-import { SMET_REWARD_ABI } from './abis';
+import { SMET_REWARD_ABI } from '@/contracts/abis';
 
 export const CONTRACT_ADDRESSES = {
   SmetGold: '0x0A8862B2d93105b6BD63ee2c9343E7966872a3D2' as `0x${string}`,
