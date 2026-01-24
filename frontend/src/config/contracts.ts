@@ -10,10 +10,4 @@ export const CONTRACT_ADDRESSES = {
 export const REWARD_CONTRACT_ADDRESS = CONTRACT_ADDRESSES.SmetReward;
 export const REWARD_CONTRACT_ABI = SMET_REWARD_ABI;
 
-export { ERC20_ABI, ERC721_ABI };
-
-export const ERC1155_ABI = [
-  'function balanceOf(address account, uint256 id) view returns (uint256)',
-  'function balanceOfBatch(address[] accounts, uint256[] ids) view returns (uint256[])',
-  'function uri(uint256 id) view returns (string)',
-] as const;
+export { ERC20_ABI, ERC721_ABI, ERC1155_ABI };
